@@ -3,16 +3,6 @@
 Open work as of 2026-10-31, with the context needed to pick it up cold. Newest
 decisions first within each item.
 
-## 0. Finish the rename on the render host (dev)
-
-The app was renamed look-askew → sklent on 2026-10-31 (repo `jay/sklent`, package
-`sklent`, settings `SK_*`, database `sklent.db`). The dev box still runs the old build from
-`/srv/docker-dev/look-askew`. To finish: `docker compose down` there, move
-the folder to `…/sklent`, rename every `LA_` key in its `.env` to `SK_`, pull, then
-`docker compose up -d --build`. On first start the app renames `data/look-askew.db` to
-`data/sklent.db`. Re-paste the token in the browser (the cookie name changed) and re-add
-the MCP server as `sklent`. Delete this item when done.
-
 ## 1. Parallel render processes (speed up large designs)
 
 **Status:** agreed in principle, not started.
@@ -97,7 +87,7 @@ Before pushing, scrub personal infrastructure:
 
 ## 5. Promote sklent to production
 
-- Today: dev only, `/srv/docker-dev/sklent`, port 8090, filing into
+- Today: dev only, `/srv/docker-dev/sklent` (compose project `sklent-dev`), port 8090, filing into
   the **dev** renders Kist on port 8083.
 - Prod renders Kist already exists: `/srv/docker/kist-renders`,
   port 8082, running the main Kist's images through `docker-compose.override.yml`. It has
