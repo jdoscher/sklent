@@ -162,7 +162,7 @@ class Forge:
         self.provider = spec_provider
         self.host = host.rstrip("/")
         settings = get_settings()
-        headers = {"User-Agent": "look-askew"}
+        headers = {"User-Agent": "sklent"}
         if spec_provider == "github":
             self.api = "https://api.github.com"
             headers["Accept"] = "application/vnd.github+json"

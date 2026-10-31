@@ -31,7 +31,7 @@ from .sources import (
     parse_source,
 )
 
-log = logging.getLogger("look-askew")
+log = logging.getLogger("sklent")
 _wake = threading.Event()
 
 
@@ -314,7 +314,7 @@ def _render(settings, source: dict, design: dict, progress) -> str:
         base_tags = ["solidcraft", f"repo:{design['owner']}/{design['repo']}", f"design:{stem}",
                      f"palette:{opts.palette}"]
         notes = (f"{design['owner']}/{design['repo']}:{design['path']} at "
-                 f"{design['commit_sha'][:10]}, rendered by look-askew")
+                 f"{design['commit_sha'][:10]}, rendered by sklent")
         for o in outputs:
             item = kist.upload(out_dir / o.file, folder_id=folder_id,
                                tags=[*base_tags, f"style:{o.style}", f"format:{o.variant}"],

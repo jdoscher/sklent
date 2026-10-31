@@ -2,22 +2,22 @@ services:
   app:
     build: .
     environment:
-      LA_TOKEN: ${LA_TOKEN:?set LA_TOKEN in .env}
-      LA_KIST_URL: ${LA_KIST_URL:-}
-      LA_KIST_TOKEN: ${LA_KIST_TOKEN:-}
-      LA_KIST_ROOT_FOLDER: ${LA_KIST_ROOT_FOLDER:-SolidCraft}
-      LA_GITHUB_TOKEN: ${LA_GITHUB_TOKEN:-}
-      LA_FORGEJO_URL: ${LA_FORGEJO_URL:-}
-      LA_FORGEJO_TOKEN: ${LA_FORGEJO_TOKEN:-}
-      LA_SCAN_INTERVAL_MINUTES: ${LA_SCAN_INTERVAL_MINUTES:-360}
+      SK_TOKEN: ${SK_TOKEN:?set SK_TOKEN in .env}
+      SK_KIST_URL: ${SK_KIST_URL:-}
+      SK_KIST_TOKEN: ${SK_KIST_TOKEN:-}
+      SK_KIST_ROOT_FOLDER: ${SK_KIST_ROOT_FOLDER:-SolidCraft}
+      SK_GITHUB_TOKEN: ${SK_GITHUB_TOKEN:-}
+      SK_FORGEJO_URL: ${SK_FORGEJO_URL:-}
+      SK_FORGEJO_TOKEN: ${SK_FORGEJO_TOKEN:-}
+      SK_SCAN_INTERVAL_MINUTES: ${SK_SCAN_INTERVAL_MINUTES:-360}
     ports:
-      - "${LA_PORT:-8090}:8000"
+      - "${SK_PORT:-8090}:8000"
     volumes:
-      - ${LA_DATA:-./data}:/data
+      - ${SK_DATA:-./data}:/data
     # The GPU. Drop these two keys on a host without /dev/dri: rendering falls back
     # to Mesa's software Vulkan (slower, same pictures).
     devices:
       - /dev/dri:/dev/dri
     group_add:
-      - "${LA_RENDER_GID:-992}"
+      - "${SK_RENDER_GID:-992}"
     restart: unless-stopped

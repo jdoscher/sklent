@@ -105,7 +105,23 @@ def connect() -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
+LEGACY_DB_NAME = "look-askew.db"  # the app was called look-askew until 2026-10-31
+
+
+def _adopt_legacy_db() -> None:
+    """Rename a look-askew.db left by the old name, once, so existing state carries over."""
+    path = get_settings().db_path
+    legacy = path.with_name(LEGACY_DB_NAME)
+    if path.exists() or not legacy.exists():
+        return
+    for suffix in ("", "-wal", "-shm"):
+        old = legacy.with_name(legacy.name + suffix)
+        if old.exists():
+            old.rename(path.with_name(path.name + suffix))
+
+
 def init() -> None:
+    _adopt_legacy_db()
     with connect() as conn:
         conn.executescript(SCHEMA)
         # A job the process died during will never finish; requeue it.

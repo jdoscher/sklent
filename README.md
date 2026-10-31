@@ -1,4 +1,7 @@
-# look askew
+# sklent
+
+*Sklent* is Scots for a slant, or to look at something sideways. (It was called look-askew until
+2026-10-31; an existing `look-askew.db` is picked up and renamed on first start.)
 
 Point it at a GitHub or Forgejo account, repo, folder or file, and it renders every
 [SolidCraft](https://github.com/tangency-labs/solidcraft) design it finds into a media set,
@@ -34,7 +37,7 @@ trashes the previous set's items (restorable from Kist's trash).
   the bounding box stays in frame at every angle, separately for landscape and portrait.
 - **Encoding** is ffmpeg (H.264, `+faststart`; palette-optimised GIFs).
 - One worker renders one design at a time; a scheduler re-scans sources every
-  `LA_SCAN_INTERVAL_MINUTES`.
+  `SK_SCAN_INTERVAL_MINUTES`.
 
 ## Running it
 
@@ -42,7 +45,7 @@ Needs Docker and, for speed, a GPU visible as `/dev/dri` (Intel/AMD via Mesa Vul
 Without one, SolidCraft falls back to software Vulkan: same pictures, slower.
 
 ```bash
-cp .env.example .env    # set LA_TOKEN, LA_KIST_URL / LA_KIST_TOKEN, forge tokens
+cp .env.example .env    # set SK_TOKEN, SK_KIST_URL / SK_KIST_TOKEN, forge tokens
 docker compose up -d --build
 ```
 
@@ -58,22 +61,22 @@ Hovering a tile plays its turntable; clicking it shows every file with downloads
 A design that is only on disk can be rendered without the app:
 
 ```bash
-docker compose run --rm app look-askew render /data/some.sc /data/out --palette white
+docker compose run --rm app sklent render /data/some.sc /data/out --palette white
 ```
 
 ### Configuration (`.env`)
 
 | variable | default | |
 |---|---|---|
-| `LA_TOKEN` | | **Required.** Token for the UI, API and MCP (16+ chars) |
-| `LA_PORT` | `8090` | Host port |
-| `LA_DATA` | `./data` | Database and local render sets |
-| `LA_KIST_URL`, `LA_KIST_TOKEN` | | Kist to file sets into; empty URL keeps renders local |
-| `LA_KIST_ROOT_FOLDER` | `SolidCraft` | Top-level Kist folder |
-| `LA_GITHUB_TOKEN` | | Private repos, and a higher API rate limit |
-| `LA_FORGEJO_URL`, `LA_FORGEJO_TOKEN` | | Your Forgejo; the token is only sent to that host |
-| `LA_SCAN_INTERVAL_MINUTES` | `360` | Periodic re-scan; `0` turns it off |
-| `LA_RENDER_GID` | `992` | Group owning `/dev/dri/renderD128` on the host |
+| `SK_TOKEN` | | **Required.** Token for the UI, API and MCP (16+ chars) |
+| `SK_PORT` | `8090` | Host port |
+| `SK_DATA` | `./data` | Database and local render sets |
+| `SK_KIST_URL`, `SK_KIST_TOKEN` | | Kist to file sets into; empty URL keeps renders local |
+| `SK_KIST_ROOT_FOLDER` | `SolidCraft` | Top-level Kist folder |
+| `SK_GITHUB_TOKEN` | | Private repos, and a higher API rate limit |
+| `SK_FORGEJO_URL`, `SK_FORGEJO_TOKEN` | | Your Forgejo; the token is only sent to that host |
+| `SK_SCAN_INTERVAL_MINUTES` | `360` | Periodic re-scan; `0` turns it off |
+| `SK_RENDER_GID` | `992` | Group owning `/dev/dri/renderD128` on the host |
 
 Render settings (palette, length, frame rate, camera pitch, still and GIF sizes, styles)
 are in the UI's **Settings** and the MCP `set_render_settings` tool.
@@ -83,8 +86,8 @@ are in the UI's **Settings** and the MCP `set_render_settings` tool.
 A streamable-HTTP MCP endpoint at `/mcp`, with the same bearer token:
 
 ```bash
-claude mcp add --transport http look-askew http://<host>:8090/mcp \
-  --header "Authorization: Bearer $LA_TOKEN"
+claude mcp add --transport http sklent http://<host>:8090/mcp \
+  --header "Authorization: Bearer $SK_TOKEN"
 ```
 
 | tool | |
@@ -102,7 +105,7 @@ filed sets there.
 ## API
 
 `/api/sources`, `/api/designs`, `/api/designs/{id}/render`, `/api/designs/{id}/files/{name}`,
-`/api/render-url`, `/api/jobs`, `/api/settings`, `/api/status`; see `lookaskew/api.py`.
+`/api/render-url`, `/api/jobs`, `/api/settings`, `/api/status`; see `sklent/api.py`.
 
 ## Limits
 

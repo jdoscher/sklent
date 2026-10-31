@@ -46,7 +46,7 @@ class McpPathRewrite:
         await self.app(scope, receive, send)
 
 
-app = FastAPI(title="look-askew", version=__version__, lifespan=lifespan)
+app = FastAPI(title="sklent", version=__version__, lifespan=lifespan)
 app.include_router(router, prefix="/api")
 app.mount("/mcp", mcp_http_app)
 app.add_middleware(BearerTokenMiddleware)

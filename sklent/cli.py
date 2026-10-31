@@ -1,4 +1,4 @@
-"""`look-askew serve` runs the app; `look-askew render FILE OUT_DIR` renders one local design."""
+"""`sklent serve` runs the app; `sklent render FILE OUT_DIR` renders one local design."""
 
 import argparse
 import json
@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="look-askew")
+    p = argparse.ArgumentParser(prog="sklent")
     sub = p.add_subparsers(dest="cmd", required=True)
     serve = sub.add_parser("serve", help="run the web app, API, MCP endpoint and worker")
     serve.add_argument("--host", default="0.0.0.0")
@@ -22,7 +22,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "serve":
         import uvicorn
-        uvicorn.run("lookaskew.app:app", host=args.host, port=args.port, proxy_headers=True)
+        uvicorn.run("sklent.app:app", host=args.host, port=args.port, proxy_headers=True)
         return 0
 
     from .render import RenderOptions, render_set

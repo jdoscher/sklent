@@ -17,9 +17,9 @@ from PIL import Image as PILImage
 from . import __version__, jobs, service
 
 mcp = MCPServer(
-    name="look-askew",
+    name="sklent",
     instructions=(
-        "look-askew renders SolidCraft CAD designs found in GitHub/Forgejo repositories into "
+        "sklent renders SolidCraft CAD designs found in GitHub/Forgejo repositories into "
         "turntable videos (1080p, vertical reel, Discord 640p), GIFs and stills, in shaded and "
         "wireframe styles, always in cool grey or white, and files each set into a Kist folder "
         "(SolidCraft/<owner>/<repo>/<design>). Start with render_url, then wait_for_job, then "

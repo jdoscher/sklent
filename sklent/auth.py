@@ -7,7 +7,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 from .config import get_settings
 
 PUBLIC_PATHS = {"/api/health"}
-COOKIE = "la_token"
+COOKIE = "sk_token"
 WEAK_TOKENS = {"", "change-me", "changeme", "secret", "token"}
 MIN_TOKEN_LENGTH = 16
 
@@ -15,7 +15,7 @@ MIN_TOKEN_LENGTH = 16
 def check_token(token: str) -> None:
     if token.strip() in WEAK_TOKENS or len(token) < MIN_TOKEN_LENGTH:
         raise RuntimeError(
-            "LA_TOKEN is unset or too weak: set it in .env to a random value of at least "
+            "SK_TOKEN is unset or too weak: set it in .env to a random value of at least "
             f"{MIN_TOKEN_LENGTH} characters (e.g. `openssl rand -hex 24`)"
         )
 
@@ -24,7 +24,7 @@ class BearerTokenMiddleware:
     """Require the shared token on /api and /mcp, as Kist does.
 
     Accepted as `Authorization: Bearer <token>`, a `token` query parameter, or (GET/HEAD
-    only) the `la_token` cookie the web UI sets so <img>/<video> tags load. The cookie is
+    only) the `sk_token` cookie the web UI sets so <img>/<video> tags load. The cookie is
     read-only so another site can't ride it into state-changing requests.
     """
 

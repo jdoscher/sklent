@@ -3,8 +3,8 @@ import math
 import numpy as np
 from PIL import Image
 
-from lookaskew import palette
-from lookaskew.render import FOV, RenderOptions, _basis, discord_kbps, fit_distance
+from sklent import palette
+from sklent.render import FOV, RenderOptions, _basis, discord_kbps, fit_distance
 
 
 def _project(p, target, yaw, pitch, dist, w, h):
@@ -83,7 +83,7 @@ def test_guard_flags_pale_and_dark_colours():
 
 
 def test_clamp_all_only_rewrites_when_colour_is_found(tmp_path):
-    from lookaskew.render import clamp_all
+    from sklent.render import clamp_all
     grey = np.full((8, 8, 3), 170, np.uint8)
     frames = []
     for i in range(8):
@@ -100,7 +100,7 @@ def test_clamp_all_only_rewrites_when_colour_is_found(tmp_path):
 
 
 def test_bounds_ignore_hidden_bodies():
-    from lookaskew.solidcraft import SolidCraft
+    from sklent.solidcraft import SolidCraft
     bodies = [
         {"name": "rover", "visible": True, "bbox": {"min": [-100, -50, 0], "max": [100, 50, 120]}},
         {"name": "track", "visible": False, "bbox": {"min": [-800, -170, -4], "max": [800, 170, 0]}},

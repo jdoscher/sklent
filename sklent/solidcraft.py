@@ -30,7 +30,7 @@ class SolidCraft:
         threading.Thread(target=self._drain_stderr, daemon=True).start()
         self._n = 0
         self._rpc("initialize", {"protocolVersion": "2025-06-18", "capabilities": {},
-                                 "clientInfo": {"name": "look-askew", "version": "0"}})
+                                 "clientInfo": {"name": "sklent", "version": "0"}})
         self._send({"jsonrpc": "2.0", "method": "notifications/initialized"})
 
     def _drain_stderr(self) -> None:

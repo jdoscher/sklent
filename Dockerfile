@@ -22,11 +22,11 @@ RUN curl -fsSL -o /tmp/sc.tgz \
 
 WORKDIR /app
 COPY pyproject.toml README.md ./
-COPY lookaskew/ ./lookaskew/
+COPY sklent/ ./sklent/
 RUN python3 -m venv /opt/venv && pip install .
 
 VOLUME /data
 EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=4 \
   CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=3)"
-CMD ["look-askew", "serve"]
+CMD ["sklent", "serve"]

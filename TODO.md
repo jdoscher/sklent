@@ -3,6 +3,16 @@
 Open work as of 2026-10-31, with the context needed to pick it up cold. Newest
 decisions first within each item.
 
+## 0. Finish the rename on the render host (dev)
+
+The app was renamed look-askew → sklent on 2026-10-31 (repo `jay/sklent`, package
+`sklent`, settings `SK_*`, database `sklent.db`). The dev box still runs the old build from
+`/srv/docker-dev/look-askew`. To finish: `docker compose down` there, move
+the folder to `…/sklent`, rename every `LA_` key in its `.env` to `SK_`, pull, then
+`docker compose up -d --build`. On first start the app renames `data/look-askew.db` to
+`data/sklent.db`. Re-paste the token in the browser (the cookie name changed) and re-add
+the MCP server as `sklent`. Delete this item when done.
+
 ## 1. Parallel render processes (speed up large designs)
 
 **Status:** agreed in principle, not started.
@@ -24,13 +34,13 @@ CPU-side scene work on every `screenshot`, not drawing. A full set is 960 frames
 (pi-case) take ~15 ms a frame and don't need any of this.
 
 **Plan.**
-- Split the frame work in `lookaskew/render.py` `render_set` across N `SolidCraft`
+- Split the frame work in `sklent/render.py` `render_set` across N `SolidCraft`
   processes. Simplest split: each worker gets a contiguous slice of the 960
   (style, aspect, frame) tasks, so each paints once or twice instead of per frame.
   Every worker loads the design itself (load is the fixed cost, paid in parallel).
 - Keep stills in worker 0. Keep the colour guard and ffmpeg encode after all workers
   finish (unchanged).
-- Setting: `LA_RENDER_PROCESSES` (default 4) in `config.py`, documented in README and
+- Setting: `SK_RENDER_PROCESSES` (default 4) in `config.py`, documented in README and
   `.env.example`. Use 1 when the design is small: e.g. render the first 8 frames in one
   process, and only fan out if the measured frame time is over ~50 ms.
 - Progress: aggregate the workers' frame counts into the job's progress.
@@ -59,49 +69,49 @@ style), which is why our wireframe is an x-ray (all bodies at opacity 0). See
 ## 3. Kist changes that were planned but not built
 
 The second Kist runs **unmodified Kist 1.0.0**. GIF and video previews were already in
-1.0.0, so nothing was required. The hover-to-play GIFs are in look-askew's own UI only.
+1.0.0, so nothing was required. The hover-to-play GIFs are in sklent's own UI only.
 If these go into Kist, release them as Kist 1.1.0 (its `docs/releasing.md`):
 
 1. Hover-to-play videos and animated GIFs in Kist's grid.
 2. An idempotent "ensure folder path" call in Kist's API and MCP
-   (`ensure_folder("SolidCraft/owner/repo/design")`). look-askew does it client-side today
-   in `lookaskew/kist.py`.
+   (`ensure_folder("SolidCraft/owner/repo/design")`). sklent does it client-side today
+   in `sklent/kist.py`.
 3. Public share links (unguessable, revocable, per item or folder) so doscher.com can
    embed files without the token. The biggest of the four.
 4. A check that ~50 MB video uploads work. The largest render so far was ~6 MB, fine.
 
-## 4. GitHub release of look-askew (paused)
+## 4. GitHub release of sklent (paused)
 
 Was asked for, then paused when it turned out Kist itself had no changes. Decide
 **public or private** first (private can be flipped later; public can't be pulled back).
 Before pushing, scrub personal infrastructure:
 
-- `lookaskew/config.py`: `forgejo_url` defaults to `https://forge.example.com`. Make it empty,
+- `sklent/config.py`: `forgejo_url` defaults to `https://forge.example.com`. Make it empty,
   and in `sources.parse_source` map SSH URLs on non-GitHub hosts to `https://<host>` when
-  no Forgejo URL is configured. The deployed `.env` sets `LA_FORGEJO_URL` explicitly, so
+  no Forgejo URL is configured. The deployed `.env` sets `SK_FORGEJO_URL` explicitly, so
   this doesn't change it.
 - `tests/test_sources.py`: a LAN IP in the SSH URL case; use `192.0.2.10`.
 - `docs/spike.md` and **this file**: the render host paths and host names.
 - Add a `CHANGELOG.md` (0.1.0) and use it for the release notes; tag `v0.1.0`.
 - No GitHub remote is configured; push by URL with gh's credential helper (as for Kist).
 
-## 5. Promote look-askew to production
+## 5. Promote sklent to production
 
-- Today: dev only, `/srv/docker-dev/look-askew`, port 8090, filing into
+- Today: dev only, `/srv/docker-dev/sklent`, port 8090, filing into
   the **dev** renders Kist on port 8083.
 - Prod renders Kist already exists: `/srv/docker/kist-renders`,
   port 8082, running the main Kist's images through `docker-compose.override.yml`. It has
   a copy of the 3 test render sets.
-- To promote: new compose dir under `/srv/docker/look-askew`, its own
-  token, `LA_KIST_URL=http://192.0.2.10:8082` with the prod renders Kist's token.
+- To promote: new compose dir under `/srv/docker/sklent`, its own
+  token, `SK_KIST_URL=http://192.0.2.10:8082` with the prod renders Kist's token.
   Optionally copy the dev `data/` so existing designs keep their Kist item ids (the prod
   renders Kist was rebuilt from the same library, so the ids match).
 - LAN only; no reverse proxy wanted.
 
 ## 6. Smaller items
 
-- **Tokens:** set `LA_FORGEJO_TOKEN` (private Forgejo repos aren't visible without it)
-  and `LA_GITHUB_TOKEN` (anonymous GitHub is 60 API calls/hour; scanning a whole account
+- **Tokens:** set `SK_FORGEJO_TOKEN` (private Forgejo repos aren't visible without it)
+  and `SK_GITHUB_TOKEN` (anonymous GitHub is 60 API calls/hour; scanning a whole account
   needs more).
 - **Linked designs:** designs are fetched as single files. A design that pulls parts from
   other files in its repo won't render. Would need a shallow or sparse clone.

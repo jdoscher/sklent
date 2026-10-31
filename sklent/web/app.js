@@ -3,7 +3,7 @@
 const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const TOKEN_KEY = 'la_token';
+const TOKEN_KEY = 'sk_token';
 
 const state = {
   token: '',
@@ -109,7 +109,7 @@ async function start() {
   const chip = $('#kist-chip');
   chip.textContent = k.url ? (k.reachable ? 'Kist connected' : 'Kist unreachable') : 'Kist off';
   chip.className = `chip ${k.url ? (k.reachable ? 'ok' : 'bad') : ''}`;
-  chip.title = k.url ? `${k.url} → ${k.root_folder}/…` : 'Set LA_KIST_URL to file renders into Kist';
+  chip.title = k.url ? `${k.url} → ${k.root_folder}/…` : 'Set SK_KIST_URL to file renders into Kist';
   await refresh();
   schedule();
 }

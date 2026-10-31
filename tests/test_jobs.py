@@ -3,9 +3,9 @@ import json
 import httpx
 from fastapi.testclient import TestClient
 
-from lookaskew import jobs, service
-from lookaskew.kist import Kist
-from lookaskew.sources import RepoInfo, TreeFile
+from sklent import jobs, service
+from sklent.kist import Kist
+from sklent.sources import RepoInfo, TreeFile
 
 TREE = {
     "a": [TreeFile("parts/case.sc", "blob1", 100), TreeFile("tests/fix.sc", "blobT", 5),
@@ -43,7 +43,7 @@ def test_scan_finds_designs_skips_tests_and_forks_and_tracks_changes(monkeypatch
     assert all(d["status"] == "queued" for d in designs.values())
 
     # pretend both rendered, then change one
-    from lookaskew import db
+    from sklent import db
     with db.connect() as conn:
         conn.execute("UPDATE designs SET status = 'rendered', rendered_sha = blob_sha")
         conn.execute("DELETE FROM jobs")
@@ -116,7 +116,7 @@ def test_kist_client_builds_folder_path_and_uploads(tmp_path):
 
 
 def test_api_requires_token_and_lists():
-    from lookaskew.app import app
+    from sklent.app import app
     with TestClient(app) as c:
         assert c.get("/api/health").status_code == 200
         assert c.get("/api/sources").status_code == 401

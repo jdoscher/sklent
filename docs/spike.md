@@ -42,7 +42,7 @@ headlessly on the render host, in both a shaded and a wireframe style.
 
 ## Outcome
 
-All of the gaps above except path tracing are handled in the app: `lookaskew/render.py`
-fits the camera from the projected bounding box per aspect ratio, and `lookaskew/palette.py`
+All of the gaps above except path tracing are handled in the app: `sklent/render.py`
+fits the camera from the projected bounding box per aspect ratio, and `sklent/palette.py`
 repaints every body grey or white and greys out any pixel that still carries colour. The
 spike scripts are not kept in the repo.
