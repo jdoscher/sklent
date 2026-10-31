@@ -53,6 +53,17 @@ def test_scan_finds_designs_skips_tests_and_forks_and_tracks_changes(monkeypatch
     TREE["a"][0] = TreeFile("parts/case.sc", "blob1", 100)
 
 
+def test_overlapping_sources_share_one_design(monkeypatch):
+    monkeypatch.setattr(jobs, "Forge", FakeForge)
+    account = jobs.add_source("https://github.com/someone")
+    jobs.scan(account["id"])
+    repo = jobs.add_source("https://github.com/someone/a/tree/main/parts")
+    msg = jobs.scan(repo["id"])
+    designs = service.list_designs()
+    assert len(designs) == 2 and {d["source_id"] for d in designs} == {repo["id"]}
+    assert "0 new or changed" in msg
+
+
 def test_adding_the_same_url_twice_reuses_the_source():
     a = jobs.add_source("https://github.com/o/r")
     b = jobs.add_source("github.com/o/r.git")

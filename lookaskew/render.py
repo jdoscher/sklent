@@ -172,13 +172,15 @@ def render_set(design: Path, out_dir: Path, stem: str, opts: RenderOptions,
 
     progress(0.01, "opening design")
     with SolidCraft(design, out_dir) as sc:
-        bodies = sc.bodies()
+        info = sc.bodies()
+        bodies = [b["name"] for b in info]
         if not bodies:
             raise SolidCraftError("the design has no solid bodies to render")
-        box = sc.bounds()
+        box = sc.bounds(info)
         if box is None:
-            raise SolidCraftError("could not measure the design's bounding box")
+            raise SolidCraftError("the design has no visible bodies to frame")
         report["bodies"] = len(bodies)
+        report["hidden_bodies"] = sum(1 for b in info if b.get("visible") is False)
         report["bounds_mm"] = box
         sample = yaws[:: max(1, n // 72)]
         aspects = {"land": (1920, 1080), "vert": (1080, 1920)}

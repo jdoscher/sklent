@@ -74,14 +74,18 @@ class SolidCraft:
     def execute(self, command: str, **params: Any) -> Any:
         return self.tool("execute", command=command, params=params)
 
-    def bodies(self) -> list[str]:
-        design = self.tool("inspect_design") or {}
-        return [b["name"] for b in design.get("bodies", [])]
+    def bodies(self) -> list[dict]:
+        """Every body with its `name`, `visible` flag and `bbox` ({min, max} in mm)."""
+        return (self.tool("inspect_design") or {}).get("bodies", [])
 
-    def bounds(self) -> tuple[list[float], list[float]] | None:
-        """The union of every body's bounding box, in mm."""
+    @staticmethod
+    def bounds(bodies: list[dict]) -> tuple[list[float], list[float]] | None:
+        """The union of the visible bodies' bounding boxes, in mm. Hidden bodies (a test
+        track, construction geometry) aren't drawn, so they mustn't shrink the framing."""
         lo = hi = None
-        for b in (self.tool("measure") or {}).get("bodies", []):
+        for b in bodies:
+            if b.get("visible") is False:
+                continue
             box = b.get("bbox") or {}
             if box.get("min") and box.get("max"):
                 lo = box["min"] if lo is None else [min(a, c) for a, c in zip(lo, box["min"], strict=True)]

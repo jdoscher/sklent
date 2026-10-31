@@ -97,3 +97,14 @@ def test_clamp_all_only_rewrites_when_colour_is_found(tmp_path):
     Image.fromarray(red).save(frames[5])  # an unsampled one: still cleaned
     assert clamp_all(frames, []) == 0.5
     assert palette.colour_fraction(frames[5]) == 0
+
+
+def test_bounds_ignore_hidden_bodies():
+    from lookaskew.solidcraft import SolidCraft
+    bodies = [
+        {"name": "rover", "visible": True, "bbox": {"min": [-100, -50, 0], "max": [100, 50, 120]}},
+        {"name": "track", "visible": False, "bbox": {"min": [-800, -170, -4], "max": [800, 170, 0]}},
+        {"name": "old file", "bbox": {"min": [0, 0, 0], "max": [150, 10, 10]}},  # no flag: visible
+    ]
+    assert SolidCraft.bounds(bodies) == ([-100, -50, 0], [150, 50, 120])
+    assert SolidCraft.bounds([bodies[1]]) is None

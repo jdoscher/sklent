@@ -212,9 +212,12 @@ def scan(source_id: str, progress=lambda f, m: None) -> str:
         with db.connect() as conn:
             for f in files:
                 found += 1
+                # One row per design even when sources overlap (an account and one of its
+                # repos): the source that scanned it last owns it, so it renders once.
                 existing = conn.execute(
-                    "SELECT * FROM designs WHERE source_id = ? AND owner = ? AND repo = ? AND path = ?",
-                    [source_id, repo.owner, repo.name, f.path]).fetchone()
+                    "SELECT d.* FROM designs d JOIN sources s ON s.id = d.source_id WHERE s.host = ?"
+                    " AND d.owner = ? AND d.repo = ? AND d.path = ?",
+                    [source["host"], repo.owner, repo.name, f.path]).fetchone()
                 url = forge.blob_url(repo.owner, repo.name, sha, f.path)
                 if existing is None:
                     did = db.new_id()
@@ -231,7 +234,7 @@ def scan(source_id: str, progress=lambda f, m: None) -> str:
                     status = existing["status"]
                     if new_blob or status == "removed":
                         status = "rendered" if existing["rendered_sha"] == f.sha else "new"
-                    db.update(conn, "designs", did, ref=ref, html_url=url, blob_sha=f.sha,
+                    db.update(conn, "designs", did, source_id=source_id, ref=ref, html_url=url, blob_sha=f.sha,
                               commit_sha=sha, size=f.size, status=status, updated_at=db.now())
                 seen.add(did)
     with db.connect() as conn:
