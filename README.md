@@ -1,8 +1,5 @@
 # sklent
 
-*Sklent* is Scots for a slant, or to look at something sideways. (It was called look-askew until
-2026-10-31; an existing `look-askew.db` is picked up and renamed on first start.)
-
 Point it at a GitHub or Forgejo account, repo, folder or file, and it renders every
 [SolidCraft](https://github.com/tangency-labs/solidcraft) design it finds into a media set,
 then files the set into a [Kist](https://github.com/jdoscher/kist) folder.
