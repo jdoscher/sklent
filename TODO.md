@@ -5,14 +5,13 @@ decisions first within each item.
 
 ## 1. Parallel render processes (speed up large designs)
 
-**Status:** built 2026-10-31 (`render.py`: `_Pool`, `extra_processes`; setting
-`SK_RENDER_PROCESSES`, default 4), tested with a fake SolidCraft. **Left: measure
-SELENE-functional on the render host** (`report.json` now records `frame_ms`, `processes`
-and `timings_s`) and record before/after below. As built: the first process renders 8
-frames; if a frame takes over 50 ms and the frames left would take more than 1.5 load
-times, extra processes start (capped by MemAvailable at the first process's RSS) and all
-pull 12-frame chunks from one queue, so late starters still help. Stills stay in the first
-process. Any failure kills the others and fails the job.
+**Status:** done 2026-10-31. SELENE-functional end to end: **~12 min before, ~5 min
+after** with `SK_RENDER_PROCESSES=4` (Jay's timing on the render host). As built: the first
+process renders 8 frames; if a frame takes over 50 ms and the frames left would take more
+than 1.5 load times, extra processes start (capped by MemAvailable at the first process's
+RSS) and all pull 12-frame chunks from one queue, so late starters still help. Stills stay
+in the first process. Any failure kills the others and fails the job. `report.json` has
+`frame_ms`, `processes` and `timings_s`. The rest of this section is the original plan.
 
 **Why.** GPU passthrough works (the container has `/dev/dri` and the render group;
 `solidcraft-cli gpu` picks the Intel Iris Xe, hardware tier), but the GPU is mostly idle.
@@ -49,7 +48,7 @@ CPU-side scene work on every `screenshot`, not drawing. A full set is 960 frames
 Consider capping workers by `MemAvailable / (measured RSS of worker 0 after load)`.
 
 **Expected.** SELENE-functional ~12 min → ~5–6 min (2 min load + ~2.2 min frames +
-guard and encode). Measure after building it; record before/after here.
+guard and encode). Measured: ~5 min (see Status).
 
 ## 2. File an upstream SolidCraft issue
 
