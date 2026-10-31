@@ -88,16 +88,14 @@ are placeholders. Left to do:
 
 ## 5. Promote sklent to production
 
-- Today: dev only, `/srv/docker-dev/sklent` (compose project `sklent-dev`), port 8090, filing into
-  the **dev** renders Kist on port 8083.
-- Prod renders Kist already exists: `/srv/docker/kist-renders`,
-  port 8082, running the main Kist's images through `docker-compose.override.yml`. It has
-  a copy of the 3 test render sets.
-- To promote: new compose dir under `/srv/docker/sklent`, its own
-  token, `SK_KIST_URL=http://192.0.2.10:8082` with the prod renders Kist's token.
-  Optionally copy the dev `data/` so existing designs keep their Kist item ids (the prod
-  renders Kist was rebuilt from the same library, so the ids match).
-- LAN only; no reverse proxy wanted.
+**Done 2026-10-31.** Production runs from `/srv/docker/sklent` (compose project `sklent`,
+port 8091), filing into the production renders Kist (port 8082), with its own token. Its
+`data/` was copied from dev, so existing designs kept their Kist item ids. The dev copy
+(port 8090, dev renders Kist on 8083) has `SK_SCAN_INTERVAL_MINUTES=0` so the two don't
+both render the same sources; use it for testing changes before production.
+
+To update production: clone the repo to a temp dir, `rsync -a --exclude .git --exclude .env
+--exclude data` it into the compose dir, then `docker compose up -d --build`.
 
 ## 6. Smaller items
 
