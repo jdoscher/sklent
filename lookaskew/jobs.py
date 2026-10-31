@@ -1,0 +1,335 @@
+"""The work: scanning sources for designs and rendering them, one job at a time.
+
+A single worker thread runs the queue (there is one GPU), and a scheduler thread
+re-scans sources on an interval so pushes to a repo turn into fresh renders.
+"""
+
+import json
+import logging
+import re
+import shutil
+import threading
+import time
+import traceback
+from dataclasses import asdict, fields
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+from . import db
+from .config import get_settings
+from .kist import Kist
+from .render import RenderOptions, render_set
+from .sources import (
+    DEFAULT_EXCLUDE,
+    Forge,
+    SourceError,
+    SourceSpec,
+    excluded,
+    in_scope,
+    is_design_path,
+    looks_like_design,
+    parse_source,
+)
+
+log = logging.getLogger("look-askew")
+_wake = threading.Event()
+
+
+# ---------------------------------------------------------------- settings
+
+def get_options() -> RenderOptions:
+    with db.connect() as conn:
+        r = conn.execute("SELECT value FROM settings WHERE key = 'render'").fetchone()
+    saved = json.loads(r["value"]) if r else {}
+    known = {f.name for f in fields(RenderOptions)}
+    return RenderOptions(**{k: v for k, v in saved.items() if k in known})
+
+
+def set_options(changes: dict[str, Any]) -> RenderOptions:
+    known = {f.name for f in fields(RenderOptions)}
+    unknown = set(changes) - known
+    if unknown:
+        raise ValueError(f"unknown render options: {', '.join(sorted(unknown))}")
+    opts = RenderOptions(**{**asdict(get_options()), **changes}).validate()
+    with db.connect() as conn:
+        conn.execute("INSERT INTO settings (key, value) VALUES ('render', ?) "
+                     "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                     [json.dumps(asdict(opts))])
+    return opts
+
+
+# ---------------------------------------------------------------- sources
+
+def add_source(url: str, auto_render: bool = True, exclude: list[str] | None = None) -> dict:
+    spec = parse_source(url)
+    with db.connect() as conn:
+        existing = conn.execute("SELECT * FROM sources WHERE url = ?", [spec.canonical_url]).fetchone()
+        if existing:
+            return db.row(existing)  # type: ignore[return-value]
+        sid = db.new_id()
+        conn.execute(
+            "INSERT INTO sources (id, url, provider, host, kind, owner, repo, ref, path, exclude,"
+            " auto_render, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            [sid, spec.canonical_url, spec.provider, spec.host, spec.kind, spec.owner, spec.repo,
+             spec.ref, spec.path, json.dumps(DEFAULT_EXCLUDE if exclude is None else exclude),
+             int(auto_render), db.now()])
+        return db.row(conn.execute("SELECT * FROM sources WHERE id = ?", [sid]).fetchone())  # type: ignore[return-value]
+
+
+def get_source(source_id: str) -> dict:
+    with db.connect() as conn:
+        r = db.row(conn.execute("SELECT * FROM sources WHERE id = ?", [source_id]).fetchone())
+    if r is None:
+        raise KeyError(f"no source {source_id}")
+    return r
+
+
+def get_design(design_id: str) -> dict:
+    with db.connect() as conn:
+        r = db.row(conn.execute("SELECT * FROM designs WHERE id = ?", [design_id]).fetchone())
+    if r is None:
+        raise KeyError(f"no design {design_id}")
+    return r
+
+
+def spec_of(source: dict) -> SourceSpec:
+    return SourceSpec(source["provider"], source["host"], source["kind"], source["owner"],
+                      source["repo"], source["ref"], source["path"])
+
+
+# ---------------------------------------------------------------- queue
+
+def enqueue(kind: str, *, source_id: str | None = None, design_id: str | None = None,
+            force: bool = False) -> dict:
+    with db.connect() as conn:
+        dup = conn.execute(
+            "SELECT * FROM jobs WHERE kind = ? AND status = 'queued' AND "
+            "source_id IS ? AND design_id IS ?", [kind, source_id, design_id]).fetchone()
+        if dup:
+            if force and not dup["force"]:
+                conn.execute("UPDATE jobs SET force = 1 WHERE id = ?", [dup["id"]])
+            job_id = dup["id"]
+        else:
+            job_id = conn.execute(
+                "INSERT INTO jobs (kind, source_id, design_id, force, created_at) VALUES (?,?,?,?,?)",
+                [kind, source_id, design_id, int(force), db.now()]).lastrowid
+            if design_id:
+                conn.execute("UPDATE designs SET status = 'queued' WHERE id = ? AND status != 'rendering'",
+                             [design_id])
+        job = db.row(conn.execute("SELECT * FROM jobs WHERE id = ?", [job_id]).fetchone())
+    _wake.set()
+    return job  # type: ignore[return-value]
+
+
+def _claim() -> dict | None:
+    with db.connect() as conn:
+        r = conn.execute(
+            "UPDATE jobs SET status = 'running', started_at = ? WHERE id = "
+            "(SELECT id FROM jobs WHERE status = 'queued' ORDER BY id LIMIT 1) RETURNING *",
+            [db.now()]).fetchone()
+        return db.row(r)
+
+
+def _progress(job_id: int):
+    last = [0.0]
+
+    def report(fraction: float, message: str) -> None:
+        if time.monotonic() - last[0] < 0.5 and fraction < 1:
+            return
+        last[0] = time.monotonic()
+        with db.connect() as conn:
+            db.update(conn, "jobs", job_id, progress=round(fraction, 3), message=message)
+    return report
+
+
+def _finish(job_id: int, error: str | None = None, message: str | None = None) -> None:
+    fields_: dict[str, Any] = {"status": "failed" if error else "done", "finished_at": db.now(),
+                               "error": error}
+    if not error:
+        fields_["progress"] = 1.0
+    if message is not None:
+        fields_["message"] = message
+    with db.connect() as conn:
+        db.update(conn, "jobs", job_id, **fields_)
+
+
+def run_job(job: dict) -> None:
+    try:
+        if job["kind"] == "scan":
+            msg = scan(job["source_id"], _progress(job["id"]))
+        else:
+            msg = render(job["design_id"], bool(job["force"]), _progress(job["id"]))
+        _finish(job["id"], message=msg)
+    except Exception as exc:  # noqa: BLE001 — a job's failure is recorded, never fatal
+        log.warning("job %s failed: %s\n%s", job["id"], exc, traceback.format_exc())
+        _finish(job["id"], error=str(exc) or exc.__class__.__name__)
+
+
+def worker_loop(stop: threading.Event) -> None:
+    while not stop.is_set():
+        job = _claim()
+        if job is None:
+            _wake.wait(2)
+            _wake.clear()
+            continue
+        run_job(job)
+
+
+def scheduler_loop(stop: threading.Event) -> None:
+    interval = get_settings().scan_interval_minutes
+    while interval > 0 and not stop.wait(60):
+        cutoff = (datetime.now(UTC) - timedelta(minutes=interval)).isoformat(timespec="seconds")
+        with db.connect() as conn:
+            due = conn.execute("SELECT id FROM sources WHERE scanned_at IS NULL OR scanned_at < ?",
+                               [cutoff]).fetchall()
+        for r in due:
+            enqueue("scan", source_id=r["id"])
+
+
+# ---------------------------------------------------------------- scan
+
+def scan(source_id: str, progress=lambda f, m: None) -> str:
+    source = get_source(source_id)
+    forge = Forge(source["provider"], source["host"])
+    errors: list[str] = []
+    if source["kind"] == "account":
+        repos = [r for r in forge.list_repos(source["owner"]) if not r.fork and not r.archived]
+    else:
+        repos = [forge.repo_info(source["owner"], source["repo"])]
+    seen: set[str] = set()
+    found = changed = 0
+    for i, repo in enumerate(repos):
+        progress(i / max(1, len(repos)), f"scanning {repo.owner}/{repo.name}")
+        try:
+            ref = source["ref"] or repo.default_branch
+            sha = forge.resolve(repo.owner, repo.name, ref)
+            files = [f for f in forge.tree(repo.owner, repo.name, sha)
+                     if is_design_path(f.path) and in_scope(f.path, source["path"])
+                     and not excluded(f.path, source["exclude"], source["path"])]
+        except (SourceError, OSError) as exc:
+            errors.append(f"{repo.owner}/{repo.name}: {exc}")
+            continue
+        with db.connect() as conn:
+            for f in files:
+                found += 1
+                existing = conn.execute(
+                    "SELECT * FROM designs WHERE source_id = ? AND owner = ? AND repo = ? AND path = ?",
+                    [source_id, repo.owner, repo.name, f.path]).fetchone()
+                url = forge.blob_url(repo.owner, repo.name, sha, f.path)
+                if existing is None:
+                    did = db.new_id()
+                    conn.execute(
+                        "INSERT INTO designs (id, source_id, owner, repo, ref, path, html_url, blob_sha,"
+                        " commit_sha, size, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                        [did, source_id, repo.owner, repo.name, ref, f.path, url, f.sha, sha, f.size,
+                         db.now()])
+                    changed += 1
+                else:
+                    did = existing["id"]
+                    new_blob = existing["blob_sha"] != f.sha
+                    changed += new_blob
+                    status = existing["status"]
+                    if new_blob or status == "removed":
+                        status = "rendered" if existing["rendered_sha"] == f.sha else "new"
+                    db.update(conn, "designs", did, ref=ref, html_url=url, blob_sha=f.sha,
+                              commit_sha=sha, size=f.size, status=status, updated_at=db.now())
+                seen.add(did)
+    with db.connect() as conn:
+        for r in conn.execute("SELECT id FROM designs WHERE source_id = ? AND status != 'removed'",
+                              [source_id]).fetchall():
+            if r["id"] not in seen and not errors:
+                db.update(conn, "designs", r["id"], status="removed", updated_at=db.now())
+        db.update(conn, "sources", source_id, scanned_at=db.now(),
+                  last_error="; ".join(errors)[:2000] or None)
+        todo = conn.execute(
+            "SELECT id FROM designs WHERE source_id = ? AND status = 'new'", [source_id]).fetchall()
+    queued = 0
+    if source["auto_render"]:
+        for r in todo:
+            enqueue("render", design_id=r["id"])
+            queued += 1
+    msg = f"{len(repos)} repo(s), {found} design(s), {changed} new or changed, {queued} queued"
+    if errors:
+        msg += f"; {len(errors)} repo error(s)"
+    return msg
+
+
+# ---------------------------------------------------------------- render
+
+def slug(text: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", text).strip("-") or "design"
+
+
+def render(design_id: str, force: bool = False, progress=lambda f, m: None) -> str:
+    settings = get_settings()
+    design = get_design(design_id)
+    if not force and design["rendered_sha"] == design["blob_sha"]:
+        with db.connect() as conn:
+            db.update(conn, "designs", design_id, status="rendered")
+        return "already rendered at this version"
+    source = get_source(design["source_id"])
+    with db.connect() as conn:
+        db.update(conn, "designs", design_id, status="rendering", error=None, updated_at=db.now())
+    try:
+        result = _render(settings, source, design, progress)
+    except Exception as exc:
+        with db.connect() as conn:
+            db.update(conn, "designs", design_id, status="failed", error=str(exc)[:2000],
+                      updated_at=db.now())
+        raise
+    return result
+
+
+def _render(settings, source: dict, design: dict, progress) -> str:
+    forge = Forge(source["provider"], source["host"])
+    progress(0.0, "downloading design")
+    data = forge.fetch(design["owner"], design["repo"], design["commit_sha"], design["path"],
+                       settings.max_design_mb * 2**20)
+    if not looks_like_design(data):
+        raise SourceError(f"{design['path']} is not a SolidCraft design")
+    work = settings.work_dir / design["id"]
+    shutil.rmtree(work, ignore_errors=True)
+    work.mkdir(parents=True)
+    filename = design["path"].rsplit("/", 1)[-1]
+    local = work / filename
+    local.write_bytes(data)
+
+    stem = slug(filename.rsplit(".", 1)[0])
+    out_dir = settings.renders_dir / design["id"] / design["blob_sha"][:12]
+    shutil.rmtree(out_dir, ignore_errors=True)
+    opts = get_options()
+    outputs, report = render_set(local, out_dir, stem, opts,
+                                 lambda f, m: progress(0.02 + 0.88 * f, m))
+    (out_dir / "report.json").write_text(json.dumps(report, indent=2))
+    shutil.rmtree(work, ignore_errors=True)
+
+    kist = Kist()
+    folder_id, items = design["kist_folder_id"], []
+    if kist.enabled:
+        progress(0.92, "filing into Kist")
+        folder_id = kist.ensure_folder([settings.kist_root_folder, design["owner"], design["repo"], stem])
+        base_tags = ["solidcraft", f"repo:{design['owner']}/{design['repo']}", f"design:{stem}",
+                     f"palette:{opts.palette}"]
+        notes = (f"{design['owner']}/{design['repo']}:{design['path']} at "
+                 f"{design['commit_sha'][:10]}, rendered by look-askew")
+        for o in outputs:
+            item = kist.upload(out_dir / o.file, folder_id=folder_id,
+                               tags=[*base_tags, f"style:{o.style}", f"format:{o.variant}"],
+                               notes=notes, source_url=design["html_url"])
+            items.append({"id": item["id"], "file": o.file})
+        new_ids = {i["id"] for i in items}
+        for old in design["kist_items"]:
+            if old["id"] not in new_ids:
+                kist.trash(old["id"])
+
+    # keep only the newest set on disk
+    for old in (settings.renders_dir / design["id"]).iterdir():
+        if old != out_dir and old.is_dir():
+            shutil.rmtree(old, ignore_errors=True)
+
+    with db.connect() as conn:
+        db.update(conn, "designs", design["id"], status="rendered", rendered_sha=design["blob_sha"],
+                  rendered_at=db.now(), render_dir=str(out_dir), files=[asdict(o) for o in outputs],
+                  kist_folder_id=folder_id, kist_items=items, error=None, updated_at=db.now())
+    where = f" and filed {len(items)} in Kist" if items else ""
+    return f"rendered {len(outputs)} files ({report['bodies']} bodies){where}"

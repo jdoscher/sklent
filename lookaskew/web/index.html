@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>look askew</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 6 55 19v26L32 58 9 45V19Z' fill='none' stroke='%23a7b0ba' stroke-width='5' stroke-linejoin='round'/%3E%3Cpath d='M9 19l23 13 23-13M32 32v26' fill='none' stroke='%23a7b0ba' stroke-width='4'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div id="gate" class="token-gate" hidden>
+    <form id="gate-form">
+      <h1>look askew</h1>
+      <p>Paste your LA_TOKEN to continue.</p>
+      <input id="gate-token" type="password" autocomplete="current-password" placeholder="token" autofocus />
+      <button class="primary" type="submit">Continue</button>
+      <p id="gate-error" class="error"></p>
+    </form>
+  </div>
+
+  <div id="app" class="app-shell" hidden>
+    <header class="topbar">
+      <span class="brand">look askew</span>
+      <form id="url-form" class="url-form">
+        <input id="url" placeholder="GitHub or Forgejo URL: account, repo, folder, or .sc file" />
+        <button type="submit" class="primary" data-action="render">Render</button>
+        <button type="button" id="add-only" title="Add as a source without rendering">Add source</button>
+      </form>
+      <input id="search" class="search" placeholder="Filter designs" />
+      <span id="kist-chip" class="chip"></span>
+      <button id="open-settings" title="Render settings">Settings</button>
+    </header>
+    <div class="app-body">
+      <nav class="sidebar">
+        <div class="section">
+          <div class="row active" data-filter="all"><span class="name">All designs</span><span class="count" id="count-all"></span></div>
+          <div class="row" data-filter="rendered"><span class="name">Rendered</span><span class="count" id="count-rendered"></span></div>
+          <div class="row" data-filter="active"><span class="name">In progress</span><span class="count" id="count-active"></span></div>
+          <div class="row" data-filter="failed"><span class="name">Failed</span><span class="count" id="count-failed"></span></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Sources</div>
+          <div id="sources"></div>
+        </div>
+        <div class="section grow">
+          <div class="section-title">Jobs</div>
+          <div id="jobs"></div>
+        </div>
+      </nav>
+      <main class="grid-area">
+        <div class="grid-meta" id="grid-meta"></div>
+        <div class="grid-scroll"><div id="grid" class="grid"></div></div>
+      </main>
+    </div>
+  </div>
+
+  <div id="detail" class="overlay" hidden>
+    <div class="detail">
+      <div class="viewer" id="viewer"></div>
+      <aside class="detail-side" id="detail-side"></aside>
+      <button class="close" data-close>✕</button>
+    </div>
+  </div>
+
+  <div id="settings" class="overlay" hidden>
+    <form class="dialog" id="settings-form">
+      <h2>Render settings</h2>
+      <p class="dim">Applies to future renders. Parts are only ever rendered in these colours.</p>
+      <fieldset class="palettes" id="palettes"></fieldset>
+      <div class="fields">
+        <label>Turntable seconds <input name="seconds" type="number" min="2" max="30" step="0.5" /></label>
+        <label>Frame rate <select name="fps"><option>24</option><option>25</option><option>30</option><option>60</option></select></label>
+        <label>Camera pitch (°) <input name="pitch_deg" type="number" min="0" max="80" /></label>
+        <label>Social still (px) <input name="social_size" type="number" min="256" max="8192" /></label>
+        <label>High-res width <input name="hires_width" type="number" min="256" max="8192" /></label>
+        <label>High-res height <input name="hires_height" type="number" min="256" max="8192" /></label>
+        <label>GIF width <input name="gif_width" type="number" min="160" max="1280" /></label>
+        <label>GIF frame rate <input name="gif_fps" type="number" min="5" max="30" /></label>
+      </div>
+      <div class="styles">
+        <label><input type="checkbox" name="style" value="shaded" /> Shaded</label>
+        <label><input type="checkbox" name="style" value="wireframe" /> Wireframe</label>
+      </div>
+      <p class="error" id="settings-error"></p>
+      <div class="actions">
+        <button type="button" data-close>Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

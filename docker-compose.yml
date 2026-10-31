@@ -1,0 +1,23 @@
+services:
+  app:
+    build: .
+    environment:
+      LA_TOKEN: ${LA_TOKEN:?set LA_TOKEN in .env}
+      LA_KIST_URL: ${LA_KIST_URL:-}
+      LA_KIST_TOKEN: ${LA_KIST_TOKEN:-}
+      LA_KIST_ROOT_FOLDER: ${LA_KIST_ROOT_FOLDER:-SolidCraft}
+      LA_GITHUB_TOKEN: ${LA_GITHUB_TOKEN:-}
+      LA_FORGEJO_URL: ${LA_FORGEJO_URL:-}
+      LA_FORGEJO_TOKEN: ${LA_FORGEJO_TOKEN:-}
+      LA_SCAN_INTERVAL_MINUTES: ${LA_SCAN_INTERVAL_MINUTES:-360}
+    ports:
+      - "${LA_PORT:-8090}:8000"
+    volumes:
+      - ${LA_DATA:-./data}:/data
+    # The GPU. Drop these two keys on a host without /dev/dri: rendering falls back
+    # to Mesa's software Vulkan (slower, same pictures).
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - "${LA_RENDER_GID:-992}"
+    restart: unless-stopped
