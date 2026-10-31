@@ -69,7 +69,7 @@ def parse_source(raw: str) -> SourceSpec:
     Accepts web URLs for accounts, repos, folders (`tree/…`, `src/branch/…`) and files
     (`blob/…`), git SSH/HTTPS clone URLs, and `owner/repo` shorthand for GitHub. Any
     host other than github.com is treated as Forgejo/Gitea; an SSH URL on a non-GitHub
-    host maps to the configured Forgejo web URL.
+    host maps to the configured Forgejo web URL, or to `https://<host>` when none is set.
     """
     raw = raw.strip()
     if not raw:
@@ -80,7 +80,7 @@ def parse_source(raw: str) -> SourceSpec:
     m = re.match(r"^[\w.-]+@([\w.-]+):(?!\d+/)(.+)$", raw)
     if m:
         host, path = m.groups()
-        provider, base = ("github", "https://github.com") if host == "github.com" else ("forgejo", forgejo)
+        provider, base = ("github", "https://github.com") if host == "github.com" else ("forgejo", forgejo or f"https://{host}")
         return _from_path(provider, base, path)
     if re.match(r"^[\w.-]+/[\w.-]+$", raw):
         return _from_path("github", "https://github.com", raw)
@@ -94,7 +94,7 @@ def parse_source(raw: str) -> SourceSpec:
     if hostname in ("github.com", "www.github.com"):
         return _from_path("github", "https://github.com", parts.path)
     if parts.scheme == "ssh":
-        return _from_path("forgejo", forgejo, parts.path)
+        return _from_path("forgejo", forgejo or f"https://{hostname}", parts.path)
     base = f"{parts.scheme}://{parts.netloc.split('@')[-1]}"
     return _from_path("forgejo", base, parts.path)
 

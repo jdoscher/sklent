@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     # API tokens for private repos (optional for public ones).
     github_token: str = ""
-    forgejo_url: str = "https://forge.example.com"
+    forgejo_url: str = ""
     forgejo_token: str = ""
 
     # Re-scan every source this often and render what changed; 0 turns it off.

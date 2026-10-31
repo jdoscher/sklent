@@ -38,7 +38,7 @@ CPU-side scene work on every `screenshot`, not drawing. A full set is 960 frames
   tail (`SolidCraftError` already carries it).
 
 **Memory.** Peak RSS per SolidCraft process: pi-case 275 MB, SELENE-functional
-**6.7 GB**. the render host had 47 GB free, so 4 workers (~27 GB) fit; 6+ wouldn't leave headroom.
+**6.7 GB**. The render host had 47 GB free, so 4 workers (~27 GB) fit; 6+ wouldn't leave headroom.
 Consider capping workers by `MemAvailable / (measured RSS of worker 0 after load)`.
 
 **Expected.** SELENE-functional ~12 min → ~5–6 min (2 min load + ~2.2 min frames +
@@ -70,19 +70,14 @@ If these go into Kist, release them as Kist 1.1.0 (its `docs/releasing.md`):
    embed files without the token. The biggest of the four.
 4. A check that ~50 MB video uploads work. The largest render so far was ~6 MB, fine.
 
-## 4. GitHub release of sklent (paused)
+## 4. GitHub release of sklent
 
-Was asked for, then paused when it turned out Kist itself had no changes. Decide
-**public or private** first (private can be flipped later; public can't be pulled back).
-Before pushing, scrub personal infrastructure:
+**Public.** The repo is public on Forgejo, and personal infrastructure is scrubbed from the
+code and the whole history (2026-10-31): no Forgejo URL default, SSH URLs on non-GitHub
+hosts map to `https://<host>` when none is configured, documentation addresses and paths
+are placeholders. Left to do:
 
-- `sklent/config.py`: `forgejo_url` defaults to `https://forge.example.com`. Make it empty,
-  and in `sources.parse_source` map SSH URLs on non-GitHub hosts to `https://<host>` when
-  no Forgejo URL is configured. The deployed `.env` sets `SK_FORGEJO_URL` explicitly, so
-  this doesn't change it.
-- `tests/test_sources.py`: a LAN IP in the SSH URL case; use `192.0.2.10`.
-- `docs/spike.md` and **this file**: the render host paths and host names.
-- Add a `CHANGELOG.md` (0.1.0) and use it for the release notes; tag `v0.1.0`.
+- Tag `v0.1.0` and use `CHANGELOG.md` for the release notes.
 - No GitHub remote is configured; push by URL with gh's credential helper (as for Kist).
 
 ## 5. Promote sklent to production

@@ -32,6 +32,19 @@ def test_parse_source(url, expect):
     assert (s.provider, s.host, s.kind, s.owner, s.repo, s.ref, s.path) == expect
 
 
+@pytest.mark.parametrize("url, host", [
+    ("ssh://git@192.0.2.10:2222/jay/parts.git", "https://192.0.2.10"),
+    ("git@git.example.net:jay/parts.git", "https://git.example.net"),
+])
+def test_ssh_url_without_configured_forgejo(url, host, monkeypatch):
+    from sklent import config
+
+    monkeypatch.setenv("SK_FORGEJO_URL", "")
+    config.get_settings.cache_clear()
+    s = parse_source(url)
+    assert (s.provider, s.host, s.owner, s.repo) == ("forgejo", host, "jay", "parts")
+
+
 def test_parse_source_rejects_junk():
     for bad in ("", "https://github.com/", "https://github.com/o/r/issues/4"):
         with pytest.raises(SourceError):
