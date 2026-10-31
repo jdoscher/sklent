@@ -36,6 +36,12 @@ trashes the previous set's items (restorable from Kist's trash).
   then each frame is a `screenshot` with an orbit camera. The camera distance is fitted so
   the bounding box stays in frame at every angle, separately for landscape and portrait.
 - **Encoding** is ffmpeg (H.264, `+faststart`; palette-optimised GIFs).
+- **Big designs render in parallel.** SolidCraft spends a fixed amount of CPU per headless
+  frame (~0.55 s on a 2,000-body assembly, at any resolution), on one core. After the first
+  8 frames, if a frame takes over 50 ms and enough frames are left to repay another load,
+  up to `SK_RENDER_PROCESSES` processes share the remaining frames, capped by free memory at
+  the first process's size. Small parts stay in one process. Each set's `report.json` has
+  the frame time, process count and per-step timings.
 - One worker renders one design at a time; a scheduler re-scans sources every
   `SK_SCAN_INTERVAL_MINUTES`.
 
@@ -76,6 +82,7 @@ docker compose run --rm app sklent render /data/some.sc /data/out --palette whit
 | `SK_GITHUB_TOKEN` | | Private repos, and a higher API rate limit |
 | `SK_FORGEJO_URL`, `SK_FORGEJO_TOKEN` | | Your Forgejo; the token is only sent to that host |
 | `SK_SCAN_INTERVAL_MINUTES` | `360` | Periodic re-scan; `0` turns it off |
+| `SK_RENDER_PROCESSES` | `4` | Most SolidCraft processes per design (see below) |
 | `SK_RENDER_GID` | `992` | Group owning `/dev/dri/renderD128` on the host |
 
 Render settings (palette, length, frame rate, camera pitch, still and GIF sizes, styles)

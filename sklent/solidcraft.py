@@ -103,6 +103,13 @@ class SolidCraft:
         self.tool("screenshot", camera=camera, path=str(path), width=width, height=height,
                   grid=False, axes=False)
 
+    def kill(self) -> None:
+        """Stop the process now (another worker failed); a call blocked on it then fails."""
+        try:
+            self.proc.kill()
+        except OSError:
+            pass
+
     def close(self) -> None:
         try:
             if self.proc.stdin:

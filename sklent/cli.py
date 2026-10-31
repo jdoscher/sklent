@@ -18,6 +18,8 @@ def main(argv: list[str] | None = None) -> int:
     one.add_argument("out_dir", type=Path)
     one.add_argument("--palette", default="cool-grey")
     one.add_argument("--seconds", type=float, default=8.0)
+    one.add_argument("--processes", type=int, default=None,
+                     help="most SolidCraft processes for frames (default: SK_RENDER_PROCESSES)")
     args = p.parse_args(argv)
 
     if args.cmd == "serve":
@@ -29,7 +31,8 @@ def main(argv: list[str] | None = None) -> int:
     opts = RenderOptions(palette=args.palette, seconds=args.seconds)
     stem = args.design.stem
     outputs, report = render_set(args.design.resolve(), args.out_dir.resolve(), stem, opts,
-                                 lambda f, m: print(f"{f:4.0%} {m}", file=sys.stderr))
+                                 lambda f, m: print(f"{f:4.0%} {m}", file=sys.stderr),
+                                 processes=args.processes)
     print(json.dumps({"outputs": [asdict(o) for o in outputs], "report": report}, indent=2))
     return 0
 

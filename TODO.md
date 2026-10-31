@@ -5,7 +5,14 @@ decisions first within each item.
 
 ## 1. Parallel render processes (speed up large designs)
 
-**Status:** agreed in principle, not started.
+**Status:** built 2026-10-31 (`render.py`: `_Pool`, `extra_processes`; setting
+`SK_RENDER_PROCESSES`, default 4), tested with a fake SolidCraft. **Left: measure
+SELENE-functional on the render host** (`report.json` now records `frame_ms`, `processes`
+and `timings_s`) and record before/after below. As built: the first process renders 8
+frames; if a frame takes over 50 ms and the frames left would take more than 1.5 load
+times, extra processes start (capped by MemAvailable at the first process's RSS) and all
+pull 12-frame chunks from one queue, so late starters still help. Stills stay in the first
+process. Any failure kills the others and fails the job.
 
 **Why.** GPU passthrough works (the container has `/dev/dri` and the render group;
 `solidcraft-cli gpu` picks the Intel Iris Xe, hardware tier), but the GPU is mostly idle.
