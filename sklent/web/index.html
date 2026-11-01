@@ -4,7 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>sklent</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 6 55 19v26L32 58 9 45V19Z' fill='none' stroke='%23a7b0ba' stroke-width='5' stroke-linejoin='round'/%3E%3Cpath d='M9 19l23 13 23-13M32 32v26' fill='none' stroke='%23a7b0ba' stroke-width='4'/%3E%3C/svg%3E" />
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png" />
+  <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
+  <meta name="theme-color" content="#121214" />
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
@@ -20,7 +23,7 @@
 
   <div id="app" class="app-shell" hidden>
     <header class="topbar">
-      <span class="brand">sklent</span>
+      <span class="brand"><img src="/static/favicon.svg" alt="" class="brand-icon" />sklent</span>
       <form id="url-form" class="url-form">
         <input id="url" placeholder="GitHub or Forgejo URL: account, repo, folder, or .sc file" />
         <button type="submit" class="primary" data-action="render">Render</button>

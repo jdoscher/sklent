@@ -75,7 +75,8 @@ input:focus, select:focus { border-color: var(--accent); }
   background: var(--bg-raised);
   border-bottom: 1px solid var(--border);
 }
-.brand { font-weight: 600; letter-spacing: .02em; margin-right: 6px; white-space: nowrap; }
+.brand { display: flex; align-items: center; gap: 7px; font-weight: 600; letter-spacing: .02em; margin-right: 6px; white-space: nowrap; }
+.brand-icon { width: 20px; height: 20px; border-radius: 5px; }
 .url-form { flex: 1; display: flex; gap: 6px; min-width: 0; }
 .url-form input { flex: 1; }
 .search { width: 180px; }

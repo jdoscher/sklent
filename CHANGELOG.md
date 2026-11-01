@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- New app icon (an S in a circle) in the top bar and as the browser tab, bookmark and
+  home-screen icon (`favicon.svg`, `favicon-32.png`, `apple-touch-icon.png`).
+
 ## 0.1.0 (2026-10-31)
 
 First release.
