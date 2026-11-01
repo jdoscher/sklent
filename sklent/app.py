@@ -54,6 +54,18 @@ app.add_middleware(McpPathRewrite)
 app.mount("/static", StaticFiles(directory=WEB), name="static")
 
 
+# Browsers and bookmark services ask for these at the site root regardless of the
+# <link> tags, so serve the real icons there instead of the SPA's index.html.
+ROOT_ICONS = {
+    "favicon.ico": "favicon.ico",
+    "favicon.svg": "favicon.svg",
+    "apple-touch-icon.png": "apple-touch-icon.png",
+    "apple-touch-icon-precomposed.png": "apple-touch-icon.png",
+}
+
+
 @app.get("/{path:path}", include_in_schema=False)
 async def spa(path: str):
+    if path in ROOT_ICONS:
+        return FileResponse(WEB / ROOT_ICONS[path], headers={"Cache-Control": "public, max-age=86400"})
     return FileResponse(WEB / "index.html", headers={"Cache-Control": "no-cache"})
