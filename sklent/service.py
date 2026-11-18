@@ -1,5 +1,6 @@
 """Operations shared by the REST API and the MCP tools, with their output shapes."""
 
+import json
 import shutil
 from pathlib import Path
 from typing import Any
@@ -27,6 +28,35 @@ def render_folder(d: dict) -> Path | None:
     return moved if moved.is_dir() else stored
 
 
+REPORT_KEYS = ("bodies", "hidden_bodies", "bounds_mm", "palette", "frame_ms", "processes", "timings_s")
+_report_cache: dict[Path, tuple[float, dict | None]] = {}
+
+
+def render_report(folder: Path | None) -> dict[str, Any] | None:
+    """The newest set's report.json, trimmed to what the UI's title block and tiles
+    show: bodies, hidden_bodies, bounds_mm ([[x, y, z] min, [x, y, z] max] in mm),
+    palette (the one this set was rendered with, which can differ from the current
+    setting), frame_ms, processes, timings_s. None when there is no report."""
+    path = folder / "report.json" if folder else None
+    if path is None or not path.is_file():
+        return None
+    mtime = path.stat().st_mtime
+    hit = _report_cache.get(path)
+    if hit and hit[0] == mtime:
+        return hit[1]
+    try:
+        raw = json.loads(path.read_text())
+    except (OSError, ValueError):
+        out = None
+    else:
+        out = {k: raw.get(k) for k in REPORT_KEYS}
+        out["palette"] = (raw.get("options") or {}).get("palette")
+        if out["bounds_mm"]:
+            out["bounds_mm"] = [[round(v, 3) for v in corner] for corner in out["bounds_mm"]]
+    _report_cache[path] = (mtime, out)
+    return out
+
+
 def design_out(d: dict) -> dict[str, Any]:
     name = d["path"].rsplit("/", 1)[-1]
     base = f"/api/designs/{d['id']}/files/"
@@ -52,6 +82,7 @@ def design_out(d: dict) -> dict[str, Any]:
         "status": d["status"],
         "stale": d["status"] == "rendered" and d["rendered_sha"] != d["blob_sha"],
         "commit": (d["commit_sha"] or "")[:10],
+        "blob": d["blob_sha"],
         "rendered_at": d["rendered_at"],
         "error": d["error"],
         "thumb_url": pick("shaded", "social"),
@@ -59,6 +90,7 @@ def design_out(d: dict) -> dict[str, Any]:
         "files": files,
         "kist_folder_id": d["kist_folder_id"],
         "kist_items": d["kist_items"],
+        "report": render_report(folder),
     }
 
 

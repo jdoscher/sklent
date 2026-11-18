@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     source_id TEXT,
     design_id TEXT,
     force INTEGER NOT NULL DEFAULT 0,
-    status TEXT NOT NULL DEFAULT 'queued',  -- queued | running | done | failed
+    status TEXT NOT NULL DEFAULT 'queued',  -- queued | running | done | failed | cancelled
     progress REAL NOT NULL DEFAULT 0,
     message TEXT NOT NULL DEFAULT '',
     error TEXT,

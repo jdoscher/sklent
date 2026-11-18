@@ -86,13 +86,21 @@ def list_jobs(limit: int = 20, active: bool = False) -> list[dict[str, Any]]:
 
 
 @mcp.tool(description=(
-    "Wait until a job is done or failed (up to timeout_s, max 600) and return it. A render of "
+    "Cancel a queued or running job. A queued job is dropped; a running render has its "
+    "SolidCraft processes killed. The job ends as cancelled and its design goes back to the "
+    "status it had. Fails for a job that already finished."))
+def cancel_job(job_id: int) -> dict[str, Any]:
+    return jobs.cancel(job_id)
+
+
+@mcp.tool(description=(
+    "Wait until a job is done, failed or cancelled (up to timeout_s, max 600) and return it. A render of "
     "a simple part takes under a minute; large assemblies several minutes."))
 async def wait_for_job(job_id: int, timeout_s: int = 300) -> dict[str, Any]:
     deadline = asyncio.get_running_loop().time() + min(max(timeout_s, 1), 600)
     while True:
         job = service.get_job(job_id)
-        if job["status"] in ("done", "failed") or asyncio.get_running_loop().time() > deadline:
+        if job["status"] in ("done", "failed", "cancelled") or asyncio.get_running_loop().time() > deadline:
             return job
         await asyncio.sleep(2)
 

@@ -130,4 +130,4 @@ def test_api_requires_token_and_lists():
         r = c.post("/mcp", headers={**h, "Accept": "application/json, text/event-stream"},
                    json={"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}})
         names = {t["name"] for t in r.json()["result"]["tools"]}
-        assert {"render_url", "wait_for_job", "view_render", "get_render_set"} <= names
+        assert {"render_url", "wait_for_job", "view_render", "get_render_set", "cancel_job"} <= names

@@ -13,12 +13,14 @@ import time
 import traceback
 from dataclasses import asdict, fields
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from . import db
 from .config import get_settings
 from .kist import Kist
 from .render import RenderOptions, render_set
+from .solidcraft import kill_all
 from .sources import (
     DEFAULT_EXCLUDE,
     Forge,
@@ -33,6 +35,19 @@ from .sources import (
 
 log = logging.getLogger("sklent")
 _wake = threading.Event()
+# Cancelling a running job: the worker's progress callback and render() check these.
+_cancel_lock = threading.Lock()
+_cancelled: set[int] = set()
+_running: dict[str, int | None] = {"job": None}
+
+
+class JobCancelled(Exception):
+    """Raised inside a running job once someone cancelled it."""
+
+
+def _cancel_requested() -> bool:
+    with _cancel_lock:
+        return _running["job"] is not None and _running["job"] in _cancelled
 
 
 # ---------------------------------------------------------------- settings
@@ -134,6 +149,8 @@ def _progress(job_id: int):
     last = [0.0]
 
     def report(fraction: float, message: str) -> None:
+        if _cancel_requested():
+            raise JobCancelled(f"job {job_id} was cancelled")
         if time.monotonic() - last[0] < 0.5 and fraction < 1:
             return
         last[0] = time.monotonic()
@@ -154,15 +171,67 @@ def _finish(job_id: int, error: str | None = None, message: str | None = None) -
 
 
 def run_job(job: dict) -> None:
+    with _cancel_lock:
+        _running["job"] = job["id"]
     try:
         if job["kind"] == "scan":
             msg = scan(job["source_id"], _progress(job["id"]))
         else:
             msg = render(job["design_id"], bool(job["force"]), _progress(job["id"]))
+        if _cancel_requested():
+            raise JobCancelled(f"job {job['id']} was cancelled")
         _finish(job["id"], message=msg)
     except Exception as exc:  # noqa: BLE001 — a job's failure is recorded, never fatal
-        log.warning("job %s failed: %s\n%s", job["id"], exc, traceback.format_exc())
-        _finish(job["id"], error=str(exc) or exc.__class__.__name__)
+        if _cancel_requested():
+            log.info("job %s cancelled", job["id"])
+        else:
+            log.warning("job %s failed: %s\n%s", job["id"], exc, traceback.format_exc())
+            _finish(job["id"], error=str(exc) or exc.__class__.__name__)
+    finally:
+        with _cancel_lock:
+            _running["job"] = None
+            _cancelled.discard(job["id"])
+
+
+def _status_without_job(design: dict) -> str:
+    """What a design's status is once a queued or running render of it is called off."""
+    if design["render_dir"] and design["files"]:
+        return "rendered"
+    return "failed" if design["error"] else "new"
+
+
+def cancel(job_id: int) -> dict:
+    """Call off a job. A queued one is dropped; a running one has its SolidCraft
+    processes killed (frames stop at once; an encode in progress stops at its next
+    progress report). Either way the job ends as `cancelled` and its design goes back
+    to the status it had. Raises KeyError for an unknown job, ValueError for a
+    finished one."""
+    with db.connect() as conn:
+        job: dict = {}
+        for _ in range(3):  # the worker may claim a queued job between our read and write
+            job = db.row(conn.execute("SELECT * FROM jobs WHERE id = ?", [job_id]).fetchone()) or {}
+            if not job:
+                raise KeyError(f"no job {job_id}")
+            if job["status"] not in ("queued", "running"):
+                raise ValueError(f"job {job_id} is already {job['status']}")
+            if job["status"] == "running":
+                with _cancel_lock:  # before the row changes, so the worker can't finish it
+                    _cancelled.add(job_id)
+            changed = conn.execute(
+                "UPDATE jobs SET status = 'cancelled', finished_at = ? WHERE id = ? AND status = ?",
+                [db.now(), job_id, job["status"]]).rowcount
+            if changed:
+                break
+        else:
+            raise ValueError(f"job {job_id} kept changing state; try again")
+        if job["status"] == "queued" and job["design_id"]:
+            d = db.row(conn.execute("SELECT * FROM designs WHERE id = ?", [job["design_id"]]).fetchone())
+            if d and d["status"] == "queued":
+                db.update(conn, "designs", d["id"], status=_status_without_job(d))
+    if job["status"] == "running":
+        kill_all()
+    with db.connect() as conn:
+        return db.row(conn.execute("SELECT * FROM jobs WHERE id = ?", [job_id]).fetchone())  # type: ignore[return-value]
 
 
 def worker_loop(stop: threading.Event) -> None:
@@ -276,11 +345,31 @@ def render(design_id: str, force: bool = False, progress=lambda f, m: None) -> s
     try:
         result = _render(settings, source, design, progress)
     except Exception as exc:
+        if _cancel_requested():
+            _undo_cancelled_render(design)
+            raise JobCancelled(f"render of {design['path']} was cancelled") from exc
         with db.connect() as conn:
             db.update(conn, "designs", design_id, status="failed", error=str(exc)[:2000],
                       updated_at=db.now())
         raise
     return result
+
+
+def _undo_cancelled_render(design: dict) -> None:
+    """Drop a cancelled render's partial set and put the design back as it was. A forced
+    re-render of an unchanged file writes into the same folder as the previous set, which
+    is cleared when the render starts, so that set is gone too."""
+    settings = get_settings()
+    out_dir = settings.renders_dir / design["id"] / design["blob_sha"][:12]
+    shutil.rmtree(out_dir, ignore_errors=True)
+    shutil.rmtree(settings.work_dir / design["id"], ignore_errors=True)
+    fields_: dict[str, Any] = {"updated_at": db.now(), "error": design["error"]}
+    if design["render_dir"] and Path(design["render_dir"]).name == out_dir.name:
+        fields_.update(render_dir=None, files=[], rendered_sha=None)
+        design = {**design, "render_dir": None, "files": []}
+    fields_["status"] = _status_without_job(design)
+    with db.connect() as conn:
+        db.update(conn, "designs", design["id"], **fields_)
 
 
 def _render(settings, source: dict, design: dict, progress) -> str:
@@ -335,4 +424,9 @@ def _render(settings, source: dict, design: dict, progress) -> str:
                   rendered_at=db.now(), render_dir=str(out_dir), files=[asdict(o) for o in outputs],
                   kist_folder_id=folder_id, kist_items=items, error=None, updated_at=db.now())
     where = f" and filed {len(items)} in Kist" if items else ""
-    return f"rendered {len(outputs)} files ({report['bodies']} bodies){where}"
+    return f"rendered {plural(len(outputs), 'file')} ({plural(report['bodies'], 'body', 'bodies')}){where}"
+
+
+def plural(n: int, one: str, many: str | None = None) -> str:
+    """`1 body`, `2 bodies`, `1,418 bodies`."""
+    return f"{n:,} {one if n == 1 else (many or one + 's')}"

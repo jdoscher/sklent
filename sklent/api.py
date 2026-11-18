@@ -146,6 +146,16 @@ def get_job(job_id: int):
         raise _not_found(exc) from exc
 
 
+@router.post("/jobs/{job_id}/cancel")
+def cancel_job(job_id: int):
+    try:
+        return jobs.cancel(job_id)
+    except KeyError as exc:
+        raise _not_found(exc) from exc
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
 @router.get("/settings")
 def get_render_settings():
     return asdict(jobs.get_options())

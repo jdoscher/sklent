@@ -7,6 +7,7 @@ call with its own camera, drawn on the GPU (or Mesa's software Vulkan).
 import json
 import subprocess
 import threading
+import weakref
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,21 @@ from .config import get_settings
 
 class SolidCraftError(RuntimeError):
     pass
+
+
+# Every solidcraft-cli process this server has open, so a cancelled job can stop them.
+_live: "weakref.WeakSet[SolidCraft]" = weakref.WeakSet()
+_live_lock = threading.Lock()
+
+
+def kill_all() -> int:
+    """Kill every open solidcraft-cli process (one worker renders at a time, so these
+    all belong to the running job). Returns how many were killed."""
+    with _live_lock:
+        procs = list(_live)
+    for sc in procs:
+        sc.kill()
+    return len(procs)
 
 
 class SolidCraft:
@@ -27,6 +43,8 @@ class SolidCraft:
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, bufsize=1,
         )
+        with _live_lock:
+            _live.add(self)
         threading.Thread(target=self._drain_stderr, daemon=True).start()
         self._n = 0
         self._rpc("initialize", {"protocolVersion": "2025-06-18", "capabilities": {},
@@ -105,12 +123,16 @@ class SolidCraft:
 
     def kill(self) -> None:
         """Stop the process now (another worker failed); a call blocked on it then fails."""
+        with _live_lock:
+            _live.discard(self)
         try:
             self.proc.kill()
         except OSError:
             pass
 
     def close(self) -> None:
+        with _live_lock:
+            _live.discard(self)
         try:
             if self.proc.stdin:
                 self.proc.stdin.close()
