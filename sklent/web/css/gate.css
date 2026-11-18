@@ -1,0 +1,5 @@
+/* token gate */
+.token-gate { height: 100vh; display: flex; align-items: center; justify-content: center; }
+.token-gate form { display: flex; flex-direction: column; gap: 10px; width: min(340px, calc(100vw - 32px)); }
+.token-gate h1 { margin: 0; font-size: 22px; font-weight: 600; }
+.token-gate p { margin: 0; color: var(--text-dim); }

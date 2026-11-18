@@ -1,0 +1,59 @@
+/* shell */
+.app-shell { height: 100vh; display: flex; flex-direction: column; }
+.app-body { flex: 1; display: flex; min-height: 0; }
+
+.topbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+}
+.brand { display: flex; align-items: center; gap: 7px; font-weight: 600; letter-spacing: .02em; margin-right: 6px; white-space: nowrap; }
+.brand-icon { width: 20px; height: 20px; border-radius: 5px; }
+.url-form { flex: 1; display: flex; gap: 6px; min-width: 0; }
+.url-form input { flex: 1; }
+.search { width: 180px; }
+.chip {
+  font-size: 11px; padding: 2px 8px; border-radius: 10px;
+  border: 1px solid var(--border); color: var(--text-dim); white-space: nowrap;
+}
+.chip.ok { color: #b4e3b6; border-color: #2f5a31; }
+.chip.bad { color: #ffb6b1; border-color: #6e2f2b; }
+
+/* sidebar */
+.sidebar {
+  width: 260px; flex-shrink: 0;
+  background: var(--bg-raised);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow-y: auto; padding: 8px 0;
+}
+.sidebar .section { padding: 4px 0 10px; border-bottom: 1px solid var(--border); }
+.sidebar .section:last-child { border-bottom: none; }
+.sidebar .section.grow { flex: 1; }
+.section-title {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-dim); padding: 6px 14px 4px;
+}
+.sidebar .row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 14px; cursor: pointer; min-height: 26px;
+}
+.sidebar .row:hover { background: var(--bg-hover); }
+.sidebar .row.active { background: var(--accent-dim); }
+.sidebar .row .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar .row .count { color: var(--text-dim); font-size: 11px; }
+.sidebar .row .row-actions { display: none; }
+.sidebar .row:hover .row-actions { display: flex; }
+.sidebar .row .warn { color: var(--warn); }
+.sidebar .empty { padding: 4px 14px; color: var(--text-dim); }
+
+.job { padding: 5px 14px; border-bottom: 1px solid #222228; }
+.job .line { display: flex; gap: 6px; align-items: baseline; }
+.job .what { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.job .state { font-size: 11px; color: var(--text-dim); }
+.job .state.failed { color: #ffb6b1; }
+.job .state.running { color: var(--accent); }
+.job .msg { color: var(--text-dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar { height: 3px; background: var(--border); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--accent); transition: width .4s; }

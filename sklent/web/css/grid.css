@@ -1,0 +1,32 @@
+/* grid */
+.grid-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.grid-meta { padding: 8px 14px; color: var(--text-dim); border-bottom: 1px solid var(--border); }
+.grid-scroll { flex: 1; overflow-y: auto; padding: 8px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.tile {
+  position: relative; border-radius: 8px; overflow: hidden;
+  background: var(--bg-raised); cursor: pointer;
+  border: 2px solid transparent; aspect-ratio: 1;
+}
+.tile:hover { border-color: var(--accent-dim); }
+.tile img { width: 100%; height: 100%; object-fit: cover; display: block; background: #dfe4ea; }
+.tile .placeholder {
+  height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; color: var(--text-dim); padding: 16px; text-align: center;
+}
+.tile .placeholder svg { width: 48px; height: 48px; opacity: .5; }
+.tile .badge {
+  position: absolute; top: 6px; right: 6px; font-size: 10px; padding: 1px 6px;
+  border-radius: 8px; background: rgba(0,0,0,.65); color: var(--text);
+}
+.badge.failed { color: #ffb6b1; }
+.badge.rendering, .badge.queued { color: #b9d4ff; }
+.badge.stale, .badge.new { color: #f0d79a; }
+.tile-caption {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 8px 6px;
+  background: linear-gradient(transparent, rgba(0,0,0,.75));
+}
+.tile-caption .n { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile-caption .r { font-size: 11px; color: #c7c7cf; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile .bar { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; border-radius: 0; }
+.empty-grid { padding: 40px; text-align: center; color: var(--text-dim); grid-column: 1 / -1; }

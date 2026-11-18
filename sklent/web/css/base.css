@@ -1,0 +1,60 @@
+/* Kist's dark look, so the renderer and the gallery feel like one tool. */
+:root {
+  color-scheme: dark;
+  --bg: #121214;
+  --bg-raised: #1b1b1f;
+  --bg-hover: #26262c;
+  --border: #2e2e36;
+  --text: #e4e4e7;
+  --text-dim: #8e8e99;
+  --accent: #6ea8fe;
+  --accent-dim: #2b4a7a;
+  --danger: #e5534b;
+  --ok: #57ab5a;
+  --warn: #c69026;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  font-size: 13px;
+  overflow: hidden;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+button {
+  font: inherit; color: inherit;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+button:hover { background: #30303a; }
+button.primary { background: var(--accent-dim); border-color: var(--accent); }
+button.danger { color: #ffb6b1; border-color: #6e2f2b; }
+button.icon { padding: 0 6px; border: none; background: none; color: var(--text-dim); }
+button.icon:hover { color: var(--text); }
+button:disabled { opacity: .45; cursor: default; }
+
+input, select {
+  font: inherit; color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  outline: none;
+  min-width: 0;
+}
+input:focus, select:focus { border-color: var(--accent); }
+
+.dim { color: var(--text-dim); }
+.error { color: #ffb6b1; min-height: 1em; }

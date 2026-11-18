@@ -1,0 +1,7 @@
+@media (max-width: 760px) {
+  .sidebar { display: none; }
+  .search, .brand, #add-only { display: none; }
+  .detail { flex-direction: column; }
+  .detail-side { width: auto; border-left: none; border-top: 1px solid var(--border); max-height: 45%; }
+  .fields { grid-template-columns: 1fr; }
+}
