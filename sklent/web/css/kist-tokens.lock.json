@@ -1,0 +1,9 @@
+{
+  "kist_tag": "v2.0.0",
+  "kist_commit": "16be8345f9e4",
+  "sha256": "d33ea81bf9d8d6f2cbe408b7d4ea069ad138ae7d3b69af0665c6daa8cf294c4d",
+  "files": [
+    "web/src/styles.css (:root scale)",
+    "web/src/themes.css"
+  ]
+}

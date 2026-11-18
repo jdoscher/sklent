@@ -1,20 +1,39 @@
-// Boot: token gate, first load, top-bar actions, keyboard.
+// Boot: theme, token gate, first load, top-bar actions, keyboard.
 
 import { api, readToken, saveToken, setToken, setUnauthorizedHandler } from './api.js';
-import { initDetail, refreshDetail } from './detail.js';
+import { closeDetail, initDetail, refreshDetail } from './detail.js';
 import { $, $$ } from './dom.js';
+import './features.js';
 import { initGrid, renderGrid } from './grid.js';
-import { initSettings } from './settings.js';
-import { initSidebar, renderSidebar } from './sidebar.js';
-import { emit, onChange, refresh, schedule, state } from './store.js';
+import { icon } from './icons.js';
+import { closeSettings, initSettings } from './settings.js';
+import { closeDrawer, initSidebar, renderSidebar } from './sidebar.js';
+import { onChange, refresh, schedule, state } from './store.js';
+import { closeMenu, initTheme } from './theme.js';
 import { toast } from './toast.js';
+
+// static icons in the markup: data-icon="name" or "name:size"
+$$('[data-icon]').forEach((el) => {
+  const [name, size] = el.dataset.icon.split(':');
+  el.insertAdjacentHTML('afterbegin', icon(name, Number(size) || 16));
+});
 
 function showGate(err = '') {
   $('#app').hidden = true;
   $('#gate').hidden = false;
   $('#gate-error').textContent = err;
+  $('#gate-host').textContent = location.host;
+  fetch('/api/health').then((r) => r.json()).then((h) => { $('#gate-version').textContent = `sklent ${h.version}`; }).catch(() => {});
+  $('#gate-token').focus();
 }
 setUnauthorizedHandler(showGate);
+
+function showKist(k) {
+  const chip = $('#kist-chip');
+  chip.className = `kist-status ${k.url ? (k.reachable ? 'ok' : 'bad') : 'off'}`;
+  $('.kist-word', chip).textContent = k.url ? (k.reachable ? 'Kist' : 'Kist unreachable') : 'Kist off';
+  chip.title = k.url ? `${k.reachable ? 'Connected to' : 'Can’t reach'} ${k.url}; sets are filed under ${k.root_folder}/…` : 'Set SK_KIST_URL to file renders into Kist';
+}
 
 async function start() {
   try {
@@ -25,15 +44,12 @@ async function start() {
   }
   $('#gate').hidden = true;
   $('#app').hidden = false;
-  const k = state.status.kist;
-  const chip = $('#kist-chip');
-  chip.textContent = k.url ? (k.reachable ? 'Kist connected' : 'Kist unreachable') : 'Kist off';
-  chip.className = `chip ${k.url ? (k.reachable ? 'ok' : 'bad') : ''}`;
-  chip.title = k.url ? `${k.url} → ${k.root_folder}/…` : 'Set SK_KIST_URL to file renders into Kist';
+  showKist(state.status.kist);
   await refresh();
   schedule();
 }
 
+initTheme();
 onChange(renderSidebar);
 onChange(renderGrid);
 onChange(refreshDetail);
@@ -42,7 +58,7 @@ initGrid();
 initDetail();
 initSettings();
 
-$('#gate-form').addEventListener('submit', async (e) => {
+$('#gate-form').addEventListener('submit', (e) => {
   e.preventDefault();
   saveToken($('#gate-token').value.trim());
   start();
@@ -51,33 +67,33 @@ $('#gate-form').addEventListener('submit', async (e) => {
 $('#url-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const url = $('#url').value.trim();
-  if (!url) return;
+  if (!url) { $('#url').focus(); return; }
   const btn = $('#url-form .primary');
   btn.disabled = true;
   try {
     const r = await api('/render-url', { method: 'POST', body: { url } });
-    toast(`${r.scan}`);
+    toast(r.scan);
     $('#url').value = '';
     state.sourceId = r.source.id;
     await refresh(); schedule();
-  } catch (err) { toast(err.message, true); } finally { btn.disabled = false; }
+  } catch (err) { toast(err.message, { bad: true }); } finally { btn.disabled = false; }
 });
 
 $('#add-only').addEventListener('click', async () => {
   const url = $('#url').value.trim();
-  if (!url) return;
+  if (!url) { $('#url').focus(); return; }
   try {
     await api('/sources', { method: 'POST', body: { url, auto_render: false } });
     toast('Source added; scanning without rendering');
     $('#url').value = '';
     await refresh(); schedule();
-  } catch (err) { toast(err.message, true); }
+  } catch (err) { toast(err.message, { bad: true }); }
 });
 
-$('#search').addEventListener('input', (e) => { state.query = e.target.value; emit(); });
-
+// Escape closes the topmost float: menu, confirm (its own handler), settings, sheet, drawer
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') $$('.overlay').forEach((o) => { if (!o.hidden) o.click(); });
+  if (e.key !== 'Escape' || !$('#confirm').hidden) return;
+  if (closeMenu() || closeSettings() || closeDetail() || closeDrawer()) e.preventDefault();
 });
 
 const saved = readToken();

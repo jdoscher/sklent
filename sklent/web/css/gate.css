@@ -1,5 +1,32 @@
-/* token gate */
-.token-gate { height: 100vh; display: flex; align-items: center; justify-content: center; }
-.token-gate form { display: flex; flex-direction: column; gap: 10px; width: min(340px, calc(100vw - 32px)); }
-.token-gate h1 { margin: 0; font-size: 22px; font-weight: 600; }
-.token-gate p { margin: 0; color: var(--text-dim); }
+/* gate.css: the token gate as a blank sheet (U2-9 + U1-12 words, UI 15a): the canvas
+ * grid (allowed here: nothing to judge yet) behind one float card drawn as a small
+ * title block: the lockup, the token cell, and a mono footer cell. */
+
+.token-gate {
+  min-height: 100vh; min-height: 100dvh;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  background-color: var(--canvas);
+  background-image:
+    linear-gradient(to right, var(--sk-grid-line) var(--sk-line), transparent var(--sk-line)),
+    linear-gradient(to bottom, var(--sk-grid-line) var(--sk-line), transparent var(--sk-line));
+  background-size: var(--sk-grid-cell) var(--sk-grid-cell);
+  background-position: center;
+}
+.gate-card {
+  width: min(384px, 100%); display: flex; flex-direction: column;
+  background: var(--bg-float); color: var(--text);
+  border: 1px solid var(--float-line); border-radius: var(--dialog-radius);
+  box-shadow: var(--float-shadow); overflow: hidden;
+  animation: float-in var(--dur-in) var(--ease-out);
+}
+.gc { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; border-bottom: var(--sk-line) solid var(--sk-rule-float); }
+.gc p { line-height: 1.5; }
+.gc-brand { flex-direction: row; align-items: center; justify-content: space-between; }
+.lockup { display: flex; align-items: center; gap: 10px; }
+.lockup-mark { width: 28px; height: 28px; display: block; }
+.gc-brand .wordmark { font-size: var(--fs-6); }
+.gc-brand .tag { color: var(--text-dim); }
+.gc input { height: 36px; font-family: var(--sk-font-data); background: var(--bg-float); }
+.gc input::placeholder { font-family: var(--font-ui); }
+.gc button.primary { height: 36px; width: 100%; }
+.gc-foot { flex-direction: row; justify-content: space-between; padding: 8px 20px; border-bottom: 0; color: var(--text-dim); }

@@ -1,59 +1,127 @@
-/* shell */
-.app-shell { height: 100vh; display: flex; flex-direction: column; }
+/* shell.css: the one-line top bar and the sidebar, both on the chrome with a
+ * pinstripe where they meet the canvas (U1-2, U1-7, U1-13, U2-4 = UI 11a). */
+
+.app-shell { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
 .app-body { flex: 1; display: flex; min-height: 0; }
+.spacer { flex: 1; }
 
+/* ---------- top bar ---------- */
 .topbar {
+  height: 48px; flex: none;
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px;
-  background: var(--bg-raised);
-  border-bottom: 1px solid var(--border);
+  padding: 0 12px;
+  background: var(--chrome);
+  border-bottom: var(--sk-line) solid var(--chrome-line);
 }
-.brand { display: flex; align-items: center; gap: 7px; font-weight: 600; letter-spacing: .02em; margin-right: 6px; white-space: nowrap; }
-.brand-icon { width: 20px; height: 20px; border-radius: 5px; }
-.url-form { flex: 1; display: flex; gap: 6px; min-width: 0; }
-.url-form input { flex: 1; }
-.search { width: 180px; }
-.chip {
-  font-size: 11px; padding: 2px 8px; border-radius: 10px;
-  border: 1px solid var(--border); color: var(--text-dim); white-space: nowrap;
+/* the brand slot is the sidebar's width, so the URL field starts over the grid's edge */
+.brand { display: flex; align-items: center; gap: 8px; width: calc(var(--sidebar-w) - 12px); flex: none; }
+.brand-mark { width: 22px; height: 22px; display: block; }
+.wordmark {
+  font-family: var(--font-display); font-weight: 400;
+  font-size: var(--fs-5); line-height: 1; letter-spacing: -0.01em; color: var(--text);
+  transform: translateY(-1px);
 }
-.chip.ok { color: #b4e3b6; border-color: #2f5a31; }
-.chip.bad { color: #ffb6b1; border-color: #6e2f2b; }
+.menu-btn, .drawer-head, .filter-row { display: none; }
 
-/* sidebar */
-.sidebar {
-  width: 260px; flex-shrink: 0;
-  background: var(--bg-raised);
-  border-right: 1px solid var(--border);
-  display: flex; flex-direction: column;
-  overflow-y: auto; padding: 8px 0;
+.url-form { flex: 0 1 640px; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.url-field { flex: 1; position: relative; display: flex; min-width: 0; }
+.url-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--text-dim); pointer-events: none; }
+.url-field input {
+  flex: 1; height: 32px; padding-left: 32px;
+  font-family: var(--sk-font-data); /* it holds a machine string */
 }
-.sidebar .section { padding: 4px 0 10px; border-bottom: 1px solid var(--border); }
-.sidebar .section:last-child { border-bottom: none; }
+.url-field input::placeholder { font-family: var(--font-ui); }
+.url-form button { height: 32px; }
+
+.bar-sep { width: var(--sk-line); height: 24px; background: var(--chrome-line); margin: 0 4px; flex: none; }
+.kist-status {
+  height: var(--ctl-h); display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 var(--ctl-pad-x); color: var(--text); white-space: nowrap;
+}
+.kist-status .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: transparent; box-shadow: 0 0 0 1px var(--field-border);
+}
+.kist-status.ok .dot { background: var(--success); }
+.kist-status.bad .dot { background: var(--danger); }
+
+/* ---------- sidebar: the schedule ---------- */
+.sidebar {
+  width: var(--sidebar-w); flex: none;
+  display: flex; flex-direction: column;
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: 8px;
+  background: var(--chrome);
+  border-right: var(--sk-line) solid var(--chrome-line);
+}
+#sidebar-sections { display: flex; flex-direction: column; flex: 1; }
+.sidebar .section { padding: 0 0 8px; }
 .sidebar .section.grow { flex: 1; }
 .section-title {
-  font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
-  color: var(--text-dim); padding: 6px 14px 4px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 8px 6px;
+  font-size: var(--fs-1); font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  font-feature-settings: 'case'; color: var(--text-dim);
 }
+/* a hairline after the caps label, out to the panel edge (a drawing's section head) */
+.section-title::after { content: ''; flex: 1; border-top: var(--sk-line) solid var(--sk-rule); }
+
 .sidebar .row {
-  display: flex; align-items: center; gap: 6px;
-  padding: 4px 14px; cursor: pointer; min-height: 26px;
+  display: flex; align-items: center; gap: 8px;
+  min-height: var(--ctl-h); padding: 0 8px;
+  border: 1px solid transparent; border-radius: var(--ctl-radius);
+  color: var(--text); cursor: pointer; user-select: none;
 }
 .sidebar .row:hover { background: var(--bg-hover); }
-.sidebar .row.active { background: var(--accent-dim); }
-.sidebar .row .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sidebar .row .count { color: var(--text-dim); font-size: 11px; }
-.sidebar .row .row-actions { display: none; }
-.sidebar .row:hover .row-actions { display: flex; }
-.sidebar .row .warn { color: var(--warn); }
-.sidebar .empty { padding: 4px 14px; color: var(--text-dim); }
+.sidebar .row.active { background: var(--accent-soft); border-color: var(--selected-line); }
+.sidebar .row .lucide { color: var(--text-dim); }
+.sidebar .row.active .lucide { color: var(--text); }
+.sidebar .row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar .row .count { color: var(--text-dim); font-size: var(--fs-1); font-variant-numeric: tabular-nums; }
+.sidebar .row.active .count { color: var(--soft-dim); }
+.sidebar .row .row-actions { display: none; gap: 2px; }
+.sidebar .row:hover .row-actions, .sidebar .row:focus-within .row-actions { display: flex; }
+.sidebar .row:hover .count, .sidebar .row:focus-within .count { display: none; }
+.sidebar .empty { padding: 4px 8px; color: var(--text-dim); line-height: 1.5; }
 
-.job { padding: 5px 14px; border-bottom: 1px solid #222228; }
-.job .line { display: flex; gap: 6px; align-items: baseline; }
-.job .what { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.job .state { font-size: 11px; color: var(--text-dim); }
-.job .state.failed { color: #ffb6b1; }
-.job .state.running { color: var(--accent); }
-.job .msg { color: var(--text-dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bar { height: 3px; background: var(--border); border-radius: 2px; margin-top: 4px; overflow: hidden; }
-.bar > i { display: block; height: 100%; background: var(--accent); transition: width .4s; }
+/* sources: the file or folder name, its parent path under it in mono, cut from the left */
+.sidebar .row[data-source] { min-height: 40px; }
+.src { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.25; }
+.src b { font-weight: 400; display: flex; align-items: center; gap: 4px; min-width: 0; }
+.src b span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.src i {
+  font-style: normal; font-family: var(--sk-font-data); font-size: var(--sk-fs-data); color: var(--text-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  direction: rtl; text-align: left;
+}
+.src .warn { color: var(--danger); display: inline-flex; }
+
+/* jobs: a log; name in Inter, state and message in mono, rules between entries */
+.job { padding: 7px 8px 8px; }
+.job + .job { border-top: var(--sk-line) solid var(--sk-rule); }
+.job .line { display: flex; gap: 8px; align-items: center; min-height: 20px; }
+.job .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.job .state {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--sk-font-data); font-size: var(--sk-fs-data); color: var(--text-dim);
+}
+.job .state.running { color: var(--text); }
+.job .state.failed { color: var(--danger); }
+.job .msg {
+  font-family: var(--sk-font-data); font-size: var(--sk-fs-data); color: var(--text-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px;
+}
+.job .cancel { margin-right: -4px; }
+
+/* the progress scale rule (U2-3): a 1 px track, ticks every 10 %, a 3 px ink fill */
+.rule { position: relative; height: 7px; margin-top: 6px; }
+.rule::before {
+  content: ''; position: absolute; inset: 0; opacity: .55;
+  background:
+    linear-gradient(var(--text-dim), var(--text-dim)) left bottom / 100% 1px no-repeat,
+    repeating-linear-gradient(to right, var(--text-dim) 0 1px, transparent 1px calc(10% - .1px)) left bottom / calc(100% + 1px) 4px no-repeat;
+}
+.rule > i {
+  position: absolute; left: 0; bottom: 0; height: 3px; background: var(--text);
+  transition: width var(--dur-3) var(--ease);
+}

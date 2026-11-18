@@ -1,0 +1,54 @@
+/* sk-tokens.css: Sklent's drafting overlay on Kist's tokens (U2). Every --sk-* is a
+ * Kist token or a color-mix of one; no new colours, so all three themes follow.
+ * Hand-edited; tests/test_tokens.py checks that it defines only --sk-* names and
+ * that every var() it uses exists. */
+
+:root {
+  /* the spec voice: Kist's own mono face, tabular, never letter-spaced */
+  --sk-font-data: var(--font-mono);
+  --sk-fs-data: var(--fs-1);          /* 11 px: specs in lists, tiles, jobs */
+  --sk-fs-data-lg: var(--fs-2);       /* 13 px: title-block and spec-sheet values */
+  --sk-data-track: 0;
+
+  /* the canvas grid: decorative (no text on it, like --tile-wait), one weight */
+  --sk-grid-cell: 24px;
+  --sk-grid-mix: 7%;
+  --sk-grid-line: color-mix(in srgb, var(--canvas-text) var(--sk-grid-mix), transparent);
+  /* tiles snap to it: 12 cells a column, 14 a row (280 image + 48 label + 8 gutter) */
+  --sk-tile: calc(var(--sk-grid-cell) * 12 - var(--tile-gap));
+  --sk-label-h: calc(var(--sk-grid-cell) * 2);
+
+  /* lines: one width; ISO 128's wide:narrow becomes tone, not weight */
+  --sk-line: 1px;
+  --sk-rule: var(--chrome-line);           /* section and row rules in the chrome */
+  --sk-rule-float: var(--float-line);      /* rules in dialogs */
+  --sk-frame: var(--field-border);         /* the one "wide" line (3:1) */
+
+  /* the drawing sheet (detail view) sits on Kist's preview surround */
+  --sk-sheet-bg: var(--preview-bg);
+  --sk-sheet-text: var(--preview-text);
+  --sk-sheet-dim: var(--preview-dim);
+  --sk-sheet-frame: var(--preview-line);
+  --sk-sheet-rule: color-mix(in srgb, var(--preview-text) 28%, transparent);
+  --sk-sheet-inset: 12px;
+
+  /* dimension lines (ISO 129-1): narrow lines, extension past the line ~8x width,
+     a small gap at the feature, oblique-stroke terminators */
+  --sk-dim-gap: 4px;
+  --sk-dim-over: 8px;
+  --sk-dim-offset: 16px;
+  --sk-dim-tick: 4.5px;
+
+  /* title block (ISO 7200 fields, bottom right per ISO 5457) */
+  --sk-tb-cell-pad: 6px 10px 8px;
+
+  /* a faint ink wash for loading sheens */
+  --sk-sheen: color-mix(in srgb, var(--canvas-text) 6%, transparent);
+}
+
+[data-theme='dark'] { --sk-grid-mix: 6%; }
+[data-theme='light'], [data-theme='gallery'] { --sk-grid-mix: 7%; }
+
+@media (prefers-contrast: more) {
+  :root, [data-theme] { --sk-grid-mix: 0%; }
+}
