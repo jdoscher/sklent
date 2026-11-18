@@ -76,7 +76,7 @@
 
 /* ---------- Appearance menu ---------- */
 .menu {
-  position: fixed; z-index: 50; min-width: 200px; padding: 6px;
+  position: fixed; z-index: 50; width: 220px; padding: 6px;
   border-radius: var(--float-radius);
 }
 .menu .caps { display: block; padding: 6px 8px 4px; color: var(--text-dim); }

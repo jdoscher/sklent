@@ -50,6 +50,11 @@ async function start() {
 }
 
 initTheme();
+// the phone's pill field is narrow: a shorter hint
+const narrow = window.matchMedia('(max-width: 760px)');
+const hint = () => { $('#url').placeholder = narrow.matches ? 'Repo, folder or .sc URL' : 'Paste a GitHub or Forgejo URL: account, repo, folder or .sc file'; };
+narrow.addEventListener('change', hint);
+hint();
 onChange(renderSidebar);
 onChange(renderGrid);
 onChange(refreshDetail);

@@ -1,4 +1,5 @@
 import logging
+import mimetypes
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -14,6 +15,8 @@ from .config import get_settings
 from .mcp_server import mcp, mcp_http_app
 
 WEB = Path(__file__).resolve().parent / "web"
+mimetypes.add_type("application/manifest+json", ".webmanifest")
+mimetypes.add_type("text/javascript", ".js")  # some hosts map .js to text/plain; modules need JS
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 
@@ -46,12 +49,24 @@ class McpPathRewrite:
         await self.app(scope, receive, send)
 
 
+class WebFiles(StaticFiles):
+    """The web UI is native ES modules with no build step, so module URLs carry no
+    version: have browsers revalidate code and styles (a cheap 304) instead of reusing
+    a stale copy after an upgrade. Fonts and images keep the default caching."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if path.endswith((".js", ".css", ".html", ".webmanifest", ".json")):
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
 app = FastAPI(title="sklent", version=__version__, lifespan=lifespan)
 app.include_router(router, prefix="/api")
 app.mount("/mcp", mcp_http_app)
 app.add_middleware(BearerTokenMiddleware)
 app.add_middleware(McpPathRewrite)
-app.mount("/static", StaticFiles(directory=WEB), name="static")
+app.mount("/static", WebFiles(directory=WEB), name="static")
 
 
 # Browsers and bookmark services ask for these at the site root regardless of the

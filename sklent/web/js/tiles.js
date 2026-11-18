@@ -63,7 +63,7 @@ export function specLine(d) {
 
 function placeholder(d, job) {
   if (d.status === 'failed') return `${icon('triangle-alert', 20)}<span class="w">Failed</span>`;
-  if (job && job.status === 'running') return `${icon('loader-circle', 20, 'spin')}<span class="w">Rendering · ${Math.round(job.progress * 100)} %</span>`;
+  if (job && job.status === 'running') return `${icon('loader-circle', 20, 'spin')}<span class="w">Rendering</span>`;
   if (job || d.status === 'queued') return `${icon('clock', 20)}<span class="w">Queued</span>`;
   return `${icon('clock', 20)}<span class="w">${esc(d.status[0].toUpperCase() + d.status.slice(1))}</span>`;
 }
@@ -75,7 +75,7 @@ export function tile(d) {
     ? `<img src="${esc(d.thumb_url)}" data-still="${esc(d.thumb_url)}" data-gif="${esc(d.gif_url || '')}" loading="lazy" decoding="async" alt="" />`
     : `<div class="placeholder">${placeholder(d, job)}</div>`;
   const pct = job && job.status === 'running' ? Math.round(job.progress * 100) : null;
-  const rule = pct != null && d.thumb_url
+  const rule = pct != null
     ? `<div class="rule"><i style="width:${pct}%"></i><b style="left:${Math.min(96, Math.max(4, pct))}%">${pct}%</b></div>` : '';
   return `<div class="tile" data-design="${esc(d.id)}" role="button" tabindex="0" aria-label="${esc(d.name)}, ${esc(d.stale ? 'changed' : d.status)}">
     <div class="fig">${fig}${rule}</div>

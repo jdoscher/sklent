@@ -178,7 +178,7 @@ function titleCells(d, sheets, current) {
   const bodies = spec.bodies ?? r.bodies;
   const mass = fmtMass(spec.mass_g ?? (spec.mass_kg != null ? spec.mass_kg * 1000 : null));
   const cells = [
-    { id: 'title', wide: true, cls: 'title', label: `Title<span class="sh">Sheet <b>${String(idx || 0).padStart(2, '0')} / ${String(sheets.length).padStart(2, '0')}</b></span>`,
+    { id: 'title', wide: true, cls: 'title', label: `Title${sheets.length ? `<span class="sh">Sheet <b>${String(idx || 0).padStart(2, '0')} / ${String(sheets.length).padStart(2, '0')}</b></span>` : ''}`,
       html: `<span class="v" id="sheet-title">${esc(spec.title || stem)}</span><span class="sub" title="${esc(d.path)}">${esc(d.path)}</span>` },
     { id: 'source', wide: true, label: 'Source', value: `${esc(d.repo)} <span class="d">@</span> ${esc(d.ref)} <span class="d">·</span> ${esc((d.commit || '').slice(0, 7))}` },
     { id: 'rev', label: 'Rev', value: d.blob ? esc(d.blob.slice(0, 7)) : '—' },

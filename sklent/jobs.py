@@ -224,11 +224,15 @@ def cancel(job_id: int) -> dict:
                 break
         else:
             raise ValueError(f"job {job_id} kept changing state; try again")
-        if job["status"] == "queued" and job["design_id"]:
+        with _cancel_lock:
+            ours = _running["job"] == job_id  # this process's worker is running it
+        if job["design_id"] and not ours:
+            # nothing will unwind it (queued, or a row left running by another process):
+            # put the design back here
             d = db.row(conn.execute("SELECT * FROM designs WHERE id = ?", [job["design_id"]]).fetchone())
-            if d and d["status"] == "queued":
+            if d and d["status"] in ("queued", "rendering"):
                 db.update(conn, "designs", d["id"], status=_status_without_job(d))
-    if job["status"] == "running":
+    if ours:
         kill_all()
     with db.connect() as conn:
         return db.row(conn.execute("SELECT * FROM jobs WHERE id = ?", [job_id]).fetchone())  # type: ignore[return-value]

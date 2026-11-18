@@ -162,3 +162,17 @@ def test_cancel_a_running_render_kills_solidcraft_and_restores_the_design(monkey
     d = jobs.get_design(did)
     assert d["status"] == "failed" and d["error"] == "earlier failure"
     assert not (settings.renders_dir / did / ("b" * 12)).exists()
+
+
+def test_cancel_a_running_row_no_worker_owns_restores_the_design(monkeypatch):
+    """A job row left `running` with no worker on it (another process, a crash) is still
+    cancellable, and its design goes back to its previous status straight away."""
+    did = _design(_source()["id"], status="rendering")
+    with db.connect() as conn:
+        jid = conn.execute("INSERT INTO jobs (kind, design_id, status, created_at) VALUES"
+                           " ('render', ?, 'running', ?)", [did, db.now()]).lastrowid
+    killed = []
+    monkeypatch.setattr(jobs, "kill_all", lambda: killed.append(1) or 0)
+    assert jobs.cancel(jid)["status"] == "cancelled"
+    assert jobs.get_design(did)["status"] == "new"
+    assert not killed  # not this worker's job: nothing of ours to kill

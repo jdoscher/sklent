@@ -48,6 +48,10 @@ a:hover { color: var(--accent-hover); }
 }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
+/* the outline mark's ink square (empty states, an empty sheet) */
+.outline .dot { fill: var(--accent); stroke: none; }
+.sheet .outline .dot { fill: var(--preview-accent); }
+
 /* Lucide icons: one 1.5 px stroke at 14 / 16 / 20 px */
 .lucide { flex: none; display: block; }
 .lucide.spin { animation: sk-spin 1.2s linear infinite; }
