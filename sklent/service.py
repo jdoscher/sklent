@@ -12,10 +12,25 @@ from .palette import PALETTES
 KIND_ORDER = ["1080p", "reel", "discord", "gif", "social", "hires"]
 
 
+def render_folder(d: dict) -> Path | None:
+    """The design's newest render set on disk.
+
+    The stored path is absolute, so a data dir that moved (a restored backup, a copy
+    mounted somewhere else) leaves it pointing nowhere; then the same set is looked
+    up under this server's renders dir, where it was written as <id>/<blob12>."""
+    if not d["render_dir"]:
+        return None
+    stored = Path(d["render_dir"])
+    if stored.is_dir():
+        return stored
+    moved = get_settings().renders_dir / d["id"] / stored.name
+    return moved if moved.is_dir() else stored
+
+
 def design_out(d: dict) -> dict[str, Any]:
     name = d["path"].rsplit("/", 1)[-1]
     base = f"/api/designs/{d['id']}/files/"
-    folder = Path(d["render_dir"]) if d["render_dir"] else None
+    folder = render_folder(d)
 
     def size(name: str) -> int | None:
         p = folder / name if folder else None
@@ -136,7 +151,7 @@ def file_path(design_id: str, name: str) -> Path:
     d = jobs.get_design(design_id)
     if not d["render_dir"] or name not in {f["file"] for f in d["files"]}:
         raise KeyError(f"design {design_id} has no file {name}")
-    return Path(d["render_dir"]) / name
+    return render_folder(d) / name  # type: ignore[operator]
 
 
 def status() -> dict:
