@@ -59,7 +59,11 @@ Open `http://<host>:8090`, paste the token, then paste a URL and press **Render*
 - `https://github.com/<owner>/<repo>/blob/<branch>/<path>.sc`: one design
 - the same shapes on Forgejo (`…/src/branch/<branch>/<path>`), and SSH clone URLs
 
-Hovering a tile plays its turntable; clicking it shows every file with downloads.
+Hovering a tile plays its turntable; clicking it opens the design as a drawing sheet: the
+file at its true pixel size, a numbered schedule of every file with downloads, and a title
+block (source and commit, revision, date, palette, envelope in mm, bodies). The UI uses
+Kist 2.0's design system (gallery grey by default; dark and light under **Appearance**)
+and works on a phone (the menu opens filters, sources and jobs). See `docs/design.md`.
 
 A design that is only on disk can be rendered without the app:
 
@@ -98,6 +102,7 @@ claude mcp add --transport http sklent http://<host>:8090/mcp \
 |---|---|
 | `render_url` | Scan a URL now and queue renders; returns job ids |
 | `wait_for_job`, `job_status`, `list_jobs` | Follow progress |
+| `cancel_job` | Drop a queued job, or stop a running render (its SolidCraft processes are killed) |
 | `get_render_set` | Files, sizes, download paths, Kist folder and item ids |
 | `view_render` | See a still (image content) |
 | `add_source`, `list_sources`, `scan_source`, `list_designs`, `render_design` | Finer control |
@@ -109,7 +114,13 @@ filed sets there.
 ## API
 
 `/api/sources`, `/api/designs`, `/api/designs/{id}/render`, `/api/designs/{id}/files/{name}`,
-`/api/render-url`, `/api/jobs`, `/api/settings`, `/api/status`; see `sklent/api.py`.
+`/api/render-url`, `/api/jobs`, `POST /api/jobs/{id}/cancel`, `/api/settings`, `/api/status`;
+see `sklent/api.py`.
+
+Each design carries `blob` (its file's git blob SHA, the sheet's revision) and `report`:
+`{bodies, hidden_bodies, bounds_mm, palette, frame_ms, processes, timings_s}` from its newest
+render set's `report.json` (`bounds_mm` is `[[x, y, z] min, [x, y, z] max]`; `palette` is the
+one that set was rendered with), or `null` before the first render.
 
 ## Limits
 
