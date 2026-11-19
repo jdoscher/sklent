@@ -177,7 +177,7 @@ def test_known_failures_stay_designed_out(themes):
     g = themes["gallery"]
     assert contrast(g["canvas-dim"], g["tile-wait"]) < 4.5
     assert contrast(g["danger"], g["tile-wait"]) < 4.5
-    css = "\n".join(p.read_text() for p in (TOKENS.parent).glob("*.css") if p.name != TOKENS.name)
+    css = "\n".join(p.read_text() for p in sorted(TOKENS.parent.rglob("*.css")) if p.name != TOKENS.name)
     # the waiting tile's placeholder text is --canvas-text, never --canvas-dim or --danger
     block = re.search(r"\.fig \.placeholder \{([^}]*)\}", css)
     assert block and "var(--canvas-text)" in block.group(1)
