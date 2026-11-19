@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+### Revisions (0.2 builder R)
+
+- **Revision history (F1).** Every rendered version of a design keeps its own render set
+  (`set.json`: the commit that made it, its message, author and date, git tags, files, Kist
+  items) instead of the newest replacing the rest. Re-rendering the same version replaces
+  only its set. Keep policy `revisions_keep` (tagged versions plus the newest 10 untagged on
+  disk; `0` keeps all); Kist is never pruned unless `revisions_prune_kist`.
+- **Kist versions.** A re-render no longer trashes the previous set's items. Every item
+  carries `rev:<commit10>` (items filed before this get theirs from their notes), and each
+  new item is linked `version_of` the item it follows and stacked with it as the cover, so
+  Kist's versions and compare work on the chain and existing Kist links keep working.
+- **Compare, filmstrip, changelog.** Two new sheets under Revisions: a slider, side by side
+  or changed-pixel view (numpy mask in the sheet's ink) of any still or the same turntable
+  frame, with the commits in between from the forge; and a filmstrip of one still per
+  version on a hairline timeline. Tile badge `N rev`; title-block Tags and Versions.
+  `GET /api/designs/{id}/sets`, `/compare`, `/changelog` and friends; MCP `list_sets`,
+  `compare_sets`, `view_compare`.
+- **Cancel keeps the old set.** A render writes into a staging folder and swaps it in once
+  finished, so cancelling (or a failure in) a forced re-render leaves the design's set as
+  it was.
+- **Build-history timelapse (F29).** Render step `timelapse` (`revisions_timelapse`, off):
+  `timeline.rollback` through the feature history, one still per step, as MP4 and GIF;
+  skipped above `revisions_timelapse_max_bodies` (100) or `_max_features` (200), with the
+  reason in the report.
+- `sklent render --settings JSON` passes feature settings to a one-off render.
+
 ### Design system and UI (0.2 builder D)
 
 - Kist 2.0's design system: its tokens are vendored verbatim in `sklent/web/css/kist-tokens.css`
