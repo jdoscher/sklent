@@ -190,7 +190,7 @@ def _annotate() -> None:
         old = tool.annotations
         tool.annotations = ToolAnnotations(
             title=getattr(old, "title", None), readOnlyHint=name in READ_ONLY_TOOLS,
-            destructiveHint=getattr(old, "destructiveHint", None) if name in WRITE_TOOLS else None)
+            destructiveHint=getattr(old, "destructive_hint", None) if name in WRITE_TOOLS else None)
 
 
 _register_features()
