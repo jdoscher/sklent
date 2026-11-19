@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, db, jobs
+from . import __version__, db, features, jobs
 from .api import router
 from .auth import BearerTokenMiddleware, check_token
 from .config import get_settings
@@ -63,6 +63,8 @@ class WebFiles(StaticFiles):
 
 app = FastAPI(title="sklent", version=__version__, lifespan=lifespan)
 app.include_router(router, prefix="/api")
+for _r in features.routers():
+    app.include_router(_r, prefix="/api")
 app.mount("/mcp", mcp_http_app)
 app.add_middleware(BearerTokenMiddleware)
 app.add_middleware(McpPathRewrite)

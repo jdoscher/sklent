@@ -146,6 +146,14 @@ def set_render_settings(palette: str | None = None, seconds: float | None = None
     return asdict(jobs.set_options(changes))
 
 
+def _register_features() -> None:
+    from . import features
+    features.register_mcp(mcp)
+
+
+_register_features()
+
+
 mcp_http_app = mcp.streamable_http_app(
     streamable_http_path="/",
     stateless_http=True,

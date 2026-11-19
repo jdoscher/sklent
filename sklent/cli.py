@@ -27,7 +27,9 @@ def main(argv: list[str] | None = None) -> int:
         uvicorn.run("sklent.app:app", host=args.host, port=args.port, proxy_headers=True)
         return 0
 
+    from . import features
     from .render import RenderOptions, render_set
+    features.load()
     opts = RenderOptions(palette=args.palette, seconds=args.seconds)
     stem = args.design.stem
     outputs, report = render_set(args.design.resolve(), args.out_dir.resolve(), stem, opts,

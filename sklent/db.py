@@ -124,6 +124,9 @@ def init() -> None:
     _adopt_legacy_db()
     with connect() as conn:
         conn.executescript(SCHEMA)
+        from . import features
+        for extra in features.schemas():
+            conn.executescript(extra)
         # A job the process died during will never finish; requeue it.
         conn.execute("UPDATE jobs SET status = 'queued', started_at = NULL WHERE status = 'running'")
         conn.execute("UPDATE designs SET status = 'queued' WHERE status = 'rendering'")
