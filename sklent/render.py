@@ -304,7 +304,8 @@ class _Pool:
 
 def render_set(design: Path, out_dir: Path, stem: str, opts: RenderOptions,
                progress: Progress = lambda f, m: None,
-               processes: int | None = None) -> tuple[list[Output], dict]:
+               processes: int | None = None,
+               settings: dict | None = None) -> tuple[list[Output], dict]:
     """Render everything into out_dir. Returns the outputs and a small report.
 
     `processes` caps the SolidCraft processes used for frames (default: the
@@ -399,14 +400,33 @@ def render_set(design: Path, out_dir: Path, stem: str, opts: RenderOptions,
                 outputs.append(Output(name, style, variant, w, h))
         timings["stills"] = time.monotonic() - clock
 
+        # Feature steps (sklent.steps): exploded views, sections, specs ... on the same process.
+        from . import steps as _steps
+        extra_guard: list[Path] = []
+        if _steps.registered():
+            clock = time.monotonic()
+            progress(0.705, "extra views")
+            ctx = _steps.StepContext(sc=sc, design=design, out_dir=out_dir, stem=stem, opts=opts,
+                                     info=info, bodies=bodies, box=box, palette=pal, pitch=pitch,
+                                     report=report, settings=dict(settings or asdict(opts)),
+                                     progress=progress)
+            _steps.run_all(ctx)
+            outputs.extend(ctx.added)
+            extra_guard = [p for p in ctx.guard if p.exists()]
+            timings["steps"] = time.monotonic() - clock
+
     clock = time.monotonic()
     # Colour guard: nothing leaves here in a design's own colours.
     progress(0.72, "checking colours")
     for style in opts.styles:
         frames = sorted((work / f"{style}_land").glob("*.png")) + sorted(
             (work / f"{style}_vert").glob("*.png"))
-        stills = [out_dir / o.file for o in outputs if o.style == style]
+        stills = [out_dir / o.file for o in outputs if o.style == style and o.variant in ("social", "hires")]
+        stills += [p for p in extra_guard if any(o.file == p.name and o.style == style for o in outputs)]
         report["clamped"][style] = round(clamp_all(frames, stills), 5)
+    other = [p for p in extra_guard if not any(o.file == p.name and o.style in opts.styles for o in outputs)]
+    if other:
+        report["clamped"]["extra"] = round(clamp_all([], other), 5)
 
     kbps = discord_kbps(opts.seconds)
     for si, style in enumerate(opts.styles):
@@ -431,6 +451,7 @@ def render_set(design: Path, out_dir: Path, stem: str, opts: RenderOptions,
     report["timings_s"] = {k: round(v, 1) for k, v in timings.items()}
     shutil.rmtree(work, ignore_errors=True)
     order = {"1080p": 0, "reel": 1, "discord": 2, "gif": 3, "social": 4, "hires": 5}
-    outputs.sort(key=lambda o: (STYLES.index(o.style), order[o.variant]))
+    outputs.sort(key=lambda o: (STYLES.index(o.style) if o.style in STYLES else len(STYLES),
+                                order.get(o.variant, len(order))))
     progress(1.0, "rendered")
     return outputs, report

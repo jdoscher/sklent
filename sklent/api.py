@@ -1,4 +1,3 @@
-from dataclasses import asdict
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -6,7 +5,6 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from . import __version__, db, jobs, service
-from .render import RenderOptions
 from .sources import SourceError
 
 router = APIRouter()
@@ -158,13 +156,13 @@ def cancel_job(job_id: int):
 
 @router.get("/settings")
 def get_render_settings():
-    return asdict(jobs.get_options())
+    return jobs.get_all_settings()
 
 
 @router.put("/settings")
 def put_render_settings(body: dict[str, Any]):
     try:
-        opts: RenderOptions = jobs.set_options(body)
+        jobs.set_options(body)
     except (ValueError, TypeError) as exc:
         raise HTTPException(422, str(exc)) from exc
-    return asdict(opts)
+    return jobs.get_all_settings()

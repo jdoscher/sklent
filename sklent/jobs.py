@@ -52,24 +52,56 @@ def _cancel_requested() -> bool:
 
 # ---------------------------------------------------------------- settings
 
-def get_options() -> RenderOptions:
+# Feature settings beyond RenderOptions: registered by feature modules, stored in the same
+# 'render' row, validated by their own function. `register_setting("exploded", False, bool)`.
+_EXTRA: dict[str, tuple[Any, Any]] = {}
+
+
+def register_setting(key: str, default: Any, validate: Any = None) -> None:
+    """Add a render setting. `validate(value)` returns the cleaned value or raises ValueError."""
+    if key in {f.name for f in fields(RenderOptions)}:
+        raise ValueError(f"{key} is a RenderOptions field")
+    _EXTRA[key] = (default, validate)
+
+
+def _saved() -> dict[str, Any]:
     with db.connect() as conn:
         r = conn.execute("SELECT value FROM settings WHERE key = 'render'").fetchone()
-    saved = json.loads(r["value"]) if r else {}
+    return json.loads(r["value"]) if r else {}
+
+
+def get_options() -> RenderOptions:
+    saved = _saved()
     known = {f.name for f in fields(RenderOptions)}
     return RenderOptions(**{k: v for k, v in saved.items() if k in known})
 
 
+def get_all_settings() -> dict[str, Any]:
+    """RenderOptions plus every registered feature setting (defaults filled in)."""
+    saved = _saved()
+    out = asdict(get_options())
+    for key, (default, _) in _EXTRA.items():
+        out[key] = saved.get(key, default)
+    return out
+
+
 def set_options(changes: dict[str, Any]) -> RenderOptions:
     known = {f.name for f in fields(RenderOptions)}
-    unknown = set(changes) - known
+    unknown = set(changes) - known - set(_EXTRA)
     if unknown:
         raise ValueError(f"unknown render options: {', '.join(sorted(unknown))}")
-    opts = RenderOptions(**{**asdict(get_options()), **changes}).validate()
+    base = {k: v for k, v in changes.items() if k in known}
+    opts = RenderOptions(**{**asdict(get_options()), **base}).validate()
+    saved = _saved()
+    extras = {k: saved[k] for k in _EXTRA if k in saved}
+    for k, v in changes.items():
+        if k in _EXTRA:
+            validate = _EXTRA[k][1]
+            extras[k] = validate(v) if validate else v
     with db.connect() as conn:
         conn.execute("INSERT INTO settings (key, value) VALUES ('render', ?) "
                      "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                     [json.dumps(asdict(opts))])
+                     [json.dumps({**asdict(opts), **extras})])
     return opts
 
 
@@ -395,7 +427,8 @@ def _render(settings, source: dict, design: dict, progress) -> str:
     shutil.rmtree(out_dir, ignore_errors=True)
     opts = get_options()
     outputs, report = render_set(local, out_dir, stem, opts,
-                                 lambda f, m: progress(0.02 + 0.88 * f, m))
+                                 lambda f, m: progress(0.02 + 0.88 * f, m),
+                                 settings=get_all_settings())
     (out_dir / "report.json").write_text(json.dumps(report, indent=2))
     shutil.rmtree(work, ignore_errors=True)
 

@@ -49,7 +49,7 @@ def test_render_message_says_one_body(monkeypatch, settings):
     monkeypatch.setattr(jobs, "Forge", _Forge)
     monkeypatch.setattr(jobs, "looks_like_design", lambda data: True)
 
-    def fake_render_set(local, out_dir, stem, opts, progress):
+    def fake_render_set(local, out_dir, stem, opts, progress, **_):
         out_dir.mkdir(parents=True, exist_ok=True)
         (out_dir / "a.png").write_bytes(b"x")
         return [Output("a.png", "shaded", "social", 8, 8)], {"bodies": 1}
@@ -135,7 +135,7 @@ def test_cancel_a_running_render_kills_solidcraft_and_restores_the_design(monkey
     monkeypatch.setattr(jobs, "kill_all", lambda: killed.set() or 1)
     started = threading.Event()
 
-    def slow_render_set(local, out_dir, stem, opts, progress):
+    def slow_render_set(local, out_dir, stem, opts, progress, **_):
         out_dir.mkdir(parents=True, exist_ok=True)
         (out_dir / "partial.png").write_bytes(b"x")
         started.set()
