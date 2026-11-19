@@ -571,7 +571,7 @@ def render_set(design: Path, out_dir: Path, stem: str, opts: RenderOptions,
     report["host"] = host or host_name()
     timings: dict[str, float] = {}
     clock = time.monotonic()
-    sc_args = {"renderer": renderer} if renderer else {}
+    sc_args = {"renderer": renderer} if renderer and renderer != "gpu" else {}
 
     def open_sc() -> SolidCraft:
         return SolidCraft(design, out_dir, **sc_args)

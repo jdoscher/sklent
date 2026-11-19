@@ -459,7 +459,7 @@ def unpack_result(tar_path: Path, stage: Path) -> tuple[list[Output], dict]:
     with its size; every listed file must be there. Returns the outputs and the report."""
     with tarfile.open(tar_path, "r:*") as tar:
         members = tar.getmembers()
-        if not members or members[0].name.lstrip("./") != MANIFEST or not members[0].isfile():
+        if not members or members[0].name.removeprefix("./") != MANIFEST or not members[0].isfile():
             raise BadUpload(f"the upload must start with {MANIFEST}")
         fh = tar.extractfile(members[0])
         try:
