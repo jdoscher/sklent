@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+### Views and render modes (0.2 builder V)
+
+- Quick check (F17): every render first makes one shaded iso still, guarded for colour, shown
+  on the tile and the sheet while the rest renders. `RenderOptions.outputs` (Settings →
+  Outputs, and per render on the sheet, `POST /api/designs/{id}/views/render`, MCP
+  `quick_check` / `render_outputs`) picks which of the six files to make; none is a quick
+  check alone. Frames that no chosen output needs aren't rendered.
+- Shot presets and masters (F24): half orbit onto the iso angle, push-in, top-down to iso and
+  a low angle, eased and fitted to the part; 4K H.264, ProRes 422 HQ and zipped PNG-sequence
+  masters that loop exactly, up to 60 s. Off by default.
+- Exploded still and explode animation (F4), section cut through the centre with filled
+  caps (F9), configuration stills and a same-scale lineup (F10, on when a design has
+  configurations), "my part" highlight still and turntable (F20, per design or
+  `.sklent.yaml`), motion-study clips (F22, on when a design has studies), transparent
+  stills and a path-traced studio hero (F15), and a plate view on a 10 mm grid (F16), as
+  render steps 10–48. Each records what it made or why it skipped in `report.json`
+  (`views`), shown in the sheet's **Views** section.
+- Bed-fit badge on tiles and in the title block, against a named printer bed from an
+  editable list (F16).
+- `sklent render` gained `--outputs`, `--settings` and `--highlight`.
+- Seams: `registerTileFigure` (tiles.js) and a `checklist` field type (settings.js).
+
 ### Design system and UI (0.2 builder D)
 
 - Kist 2.0's design system: its tokens are vendored verbatim in `sklent/web/css/kist-tokens.css`
