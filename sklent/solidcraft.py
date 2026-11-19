@@ -4,7 +4,11 @@ One process per design: the design loads once, then every frame is a `screenshot
 call with its own camera, drawn on the GPU (or Mesa's software Vulkan).
 """
 
+import functools
+import glob
 import json
+import os
+import re
 import subprocess
 import threading
 import weakref
@@ -30,6 +34,65 @@ ALLOW_PATH_HOOKS: list = []
 OPEN_HOOKS: list = []
 
 
+RENDERERS = ("gpu", "software")
+
+
+def lvp_icd() -> str | None:
+    """Mesa lavapipe's Vulkan ICD file (software Vulkan on the CPU), or None."""
+    given = get_settings().lvp_icd
+    if given:
+        return given
+    for pattern in ("/usr/share/vulkan/icd.d/lvp_icd*.json", "/etc/vulkan/icd.d/lvp_icd*.json"):
+        found = sorted(glob.glob(pattern))
+        if found:
+            return found[0]
+    return None
+
+
+def renderer_env(renderer: str | None) -> dict[str, str] | None:
+    """The environment for a SolidCraft process: None (inherit) for the GPU; for software,
+    SolidCraft's software policy with the Vulkan loader limited to lavapipe and GL forced to
+    software, so the process never drives the GPU."""
+    if renderer != "software":
+        return None
+    env = dict(os.environ)
+    env.update(SOLIDCRAFT_GPU="software", LIBGL_ALWAYS_SOFTWARE="1", GALLIUM_DRIVER="llvmpipe")
+    icd = lvp_icd()
+    if icd:
+        env.update(VK_DRIVER_FILES=icd, VK_ICD_FILENAMES=icd)
+    return env
+
+
+@functools.cache
+def version() -> str | None:
+    """`solidcraft-cli --version` ("0.44.1"), or None when it can't be run."""
+    try:
+        r = subprocess.run([get_settings().solidcraft_cli, "--version"], capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    m = re.search(r"(\d+\.\d+\.\d+[\w.+-]*)", r.stdout or r.stderr or "")
+    return m.group(1) if m else None
+
+
+@functools.cache
+def gpu_info(renderer: str | None = None) -> dict[str, Any]:
+    """What a headless render lands on with this renderer (`solidcraft-cli gpu`):
+    {renderer: gpu|software, adapter, backend, lands_on}. Without SolidCraft the
+    requested renderer is reported as it is, with no adapter."""
+    out: dict[str, Any] = {"renderer": renderer or "gpu", "adapter": None}
+    try:
+        r = subprocess.run([get_settings().solidcraft_cli, "gpu"], capture_output=True, text=True, timeout=60,
+                           env=renderer_env(renderer))
+        data = json.loads(r.stdout)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return out
+    chosen = data.get("chosen") or {}
+    lands = data.get("lands_on") or chosen.get("tier")
+    out.update(renderer="gpu" if lands == "hardware" else "software", adapter=chosen.get("name"),
+               backend=chosen.get("backend"), lands_on=lands)
+    return out
+
+
 def kill_all() -> int:
     """Kill every open solidcraft-cli process (one worker renders at a time, so these
     all belong to the running job). Returns how many were killed."""
@@ -41,15 +104,16 @@ def kill_all() -> int:
 
 
 class SolidCraft:
-    def __init__(self, design: Path, out_dir: Path, timeout: float = 600):
+    def __init__(self, design: Path, out_dir: Path, timeout: float = 600, renderer: str | None = None):
         self.timeout = timeout
+        self.renderer = renderer
         self._stderr: list[str] = []
         extra = [a for hook in ALLOW_PATH_HOOKS for p in hook(design) for a in ("--allow-path", str(p))]
         self.proc = subprocess.Popen(
             [get_settings().solidcraft_cli, "mcp", "--headless", "--in", str(design),
              "--allow-path", str(out_dir), "--allow-path", str(design.parent), *extra],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            text=True, bufsize=1,
+            text=True, bufsize=1, env=renderer_env(renderer),
         )
         with _live_lock:
             _live.add(self)

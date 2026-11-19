@@ -62,7 +62,8 @@ _EXTRA: dict[str, tuple[Any, Any]] = {}
 
 
 def register_setting(key: str, default: Any, validate: Any = None) -> None:
-    """Add a render setting. `validate(value)` returns the cleaned value or raises ValueError."""
+    """Add a render setting. `validate(value)` returns the cleaned value or raises ValueError.
+    `default` may be a callable (read each time: a default that comes from the environment)."""
     if key in {f.name for f in fields(RenderOptions)}:
         raise ValueError(f"{key} is a RenderOptions field")
     _EXTRA[key] = (default, validate)
@@ -98,7 +99,7 @@ def get_all_settings(design_id: str | None = None) -> dict[str, Any]:
     saved = {**_saved(), **_repo_overrides(design_id)}
     out = asdict(get_options(design_id))
     for key, (default, _) in _EXTRA.items():
-        out[key] = saved.get(key, default)
+        out[key] = saved[key] if key in saved else (default() if callable(default) else default)
     return out
 
 
@@ -185,12 +186,37 @@ def enqueue(kind: str, *, source_id: str | None = None, design_id: str | None = 
     return job  # type: ignore[return-value]
 
 
-def _claim() -> dict | None:
+# Which queued render jobs this server's worker may take now (0.2.1). The helpers feature
+# sets it: fn() -> {"take": "all" | "none" | "older", "before": iso time (for "older"),
+# "renderer": "gpu" | "software", "processes": int}. Without it the host takes every job.
+HOST_GATE: list = []
+# Called on every worker turn (at most every few seconds): requeues helper jobs whose lease ran out.
+HOUSEKEEPING: list = []
+# A design never renders twice at once (host and a helper share its work folder and stage).
+NOT_BUSY = ("(design_id IS NULL OR design_id NOT IN "
+            "(SELECT design_id FROM jobs WHERE status = 'running' AND design_id IS NOT NULL))")
+
+
+def host_plan() -> dict:
+    for gate in HOST_GATE:
+        return gate()
+    return {"take": "all", "renderer": None, "processes": None}
+
+
+def _claim(plan: dict | None = None) -> dict | None:
+    """The oldest queued job this server may run now. Scans always; renders as the host
+    plan allows (a render it skips doesn't hold up the scans behind it)."""
+    plan = plan or host_plan()
+    where, args = "kind != 'render'", []
+    if plan["take"] == "all":
+        where = "1"
+    elif plan["take"] == "older":
+        where, args = "(kind != 'render' OR created_at <= ?)", [plan["before"]]
     with db.connect() as conn:
         r = conn.execute(
             "UPDATE jobs SET status = 'running', started_at = ? WHERE id = "
-            "(SELECT id FROM jobs WHERE status = 'queued' ORDER BY id LIMIT 1) RETURNING *",
-            [db.now()]).fetchone()
+            f"(SELECT id FROM jobs WHERE status = 'queued' AND {where} AND {NOT_BUSY} ORDER BY id LIMIT 1) "
+            "RETURNING *", [db.now(), *args]).fetchone()
         return db.row(r)
 
 
@@ -219,7 +245,7 @@ def _finish(job_id: int, error: str | None = None, message: str | None = None) -
         db.update(conn, "jobs", job_id, **fields_)
 
 
-def run_job(job: dict) -> None:
+def run_job(job: dict, plan: dict | None = None) -> None:
     with _cancel_lock:
         _running["job"] = job["id"]
         _cancelled.intersection_update({job["id"]})  # nothing else can be running now
@@ -227,7 +253,9 @@ def run_job(job: dict) -> None:
         if job["kind"] == "scan":
             msg = scan(job["source_id"], _progress(job["id"]))
         else:
-            msg = render(job["design_id"], bool(job["force"]), _progress(job["id"]))
+            plan = plan or {}
+            msg = render(job["design_id"], bool(job["force"]), _progress(job["id"]),
+                         renderer=plan.get("renderer"), processes=plan.get("processes"))
         if _cancel_requested():
             raise JobCancelled(f"job {job['id']} was cancelled")
         _finish(job["id"], message=msg)
@@ -294,14 +322,27 @@ def cancel(job_id: int) -> dict:
         return db.row(conn.execute("SELECT * FROM jobs WHERE id = ?", [job_id]).fetchone())  # type: ignore[return-value]
 
 
+def housekeeping() -> None:
+    for fn in HOUSEKEEPING:
+        try:
+            fn()
+        except Exception as exc:  # noqa: BLE001 - never stop the worker
+            log.warning("housekeeping %s: %s", getattr(fn, "__name__", fn), exc)
+
+
 def worker_loop(stop: threading.Event) -> None:
+    last = 0.0
     while not stop.is_set():
-        job = _claim()
+        if time.monotonic() - last > 5:
+            housekeeping()
+            last = time.monotonic()
+        plan = host_plan()
+        job = _claim(plan)
         if job is None:
             _wake.wait(2)
             _wake.clear()
             continue
-        run_job(job)
+        run_job(job, plan)
 
 
 def scheduler_loop(stop: threading.Event) -> None:
@@ -473,30 +514,41 @@ def slug(text: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", text).strip("-") or "design"
 
 
-def render(design_id: str, force: bool = False, progress=lambda f, m: None) -> str:
-    settings = get_settings()
+def render(design_id: str, force: bool = False, progress=lambda f, m: None,
+           renderer: str | None = None, processes: int | None = None) -> str:
+    """Render a design here: prepare_render, render_here, finish_render."""
     design = get_design(design_id)
     if not force and design["rendered_sha"] == design["blob_sha"]:
         with db.connect() as conn:
             db.update(conn, "designs", design_id, status="rendered")
         return "already rendered at this version"
-    source = get_source(design["source_id"])
     with db.connect() as conn:
         db.update(conn, "designs", design_id, status="rendering", error=None, updated_at=db.now())
     try:
-        result = _render(settings, source, design, progress)
+        local, opts, snapshot = prepare_render(design, progress)
+        design = design_of(snapshot)
+        stage, outputs, report = render_here(local, design, opts, snapshot, progress,
+                                             renderer=renderer, processes=processes)
+        result = finish_render(design, stage, outputs, report, progress, settings=snapshot)
     except Exception as exc:
         if _cancel_requested():
             # the inputs step may have re-keyed the design (linked files): clean up that set
             _undo_cancelled_render({**design, "blob_sha": get_design(design_id)["blob_sha"]})
             raise JobCancelled(f"render of {design['path']} was cancelled") from exc
-        from . import sets
-        sets.discard(sets.staging_dir(design_id, sets.set_id_for(design["blob_sha"])))
-        with db.connect() as conn:
-            db.update(conn, "designs", design_id, status="failed", error=str(exc)[:2000],
-                      updated_at=db.now())
+        render_failed(design_id, exc)
         raise
     return result
+
+
+def render_failed(design_id: str, exc: BaseException | str) -> None:
+    """A render that failed: drop its stage, mark the design failed with the error."""
+    from . import sets
+
+    design = get_design(design_id)
+    sets.discard(sets.staging_dir(design_id, sets.set_id_for(design["blob_sha"])))
+    shutil.rmtree(get_settings().work_dir / design_id, ignore_errors=True)
+    with db.connect() as conn:
+        db.update(conn, "designs", design_id, status="failed", error=str(exc)[:2000], updated_at=db.now())
 
 
 def _undo_cancelled_render(design: dict) -> None:
@@ -511,18 +563,24 @@ def _undo_cancelled_render(design: dict) -> None:
     fields_: dict[str, Any] = {"updated_at": db.now(), "error": design["error"]}
     if design["render_dir"] and not Path(design["render_dir"]).is_dir() and sets.latest_set(design["id"]) is None:
         fields_.update(render_dir=None, files=[], rendered_sha=None)
-        design = {**design, "render_dir": None, "files": []}
+        design = {**design, "render_dir": None, "files": [], "rendered_sha": None}
     fields_["status"] = _status_without_job(design)
     with db.connect() as conn:
         db.update(conn, "designs", design["id"], **fields_)
 
 
-def _render(settings, source: dict, design: dict, progress) -> str:
-    """Render the design's current version into its own set (F1: one set per version,
-    older sets kept), file it into Kist as new versions of the previous set's items, then
-    apply the keep policy."""
-    from . import sets
+def design_of(snapshot: dict) -> dict:
+    """The design row a settings snapshot carries (without the source's provider/host)."""
+    return {k: v for k, v in snapshot["design"].items() if k not in ("provider", "host")}
 
+
+def prepare_render(design: dict, progress=lambda f, m: None) -> tuple[Path, RenderOptions, dict[str, Any]]:
+    """The first part of a render, on the server: download the design and the files it
+    links into `<work>/<design id>/`, and work out its options. Returns the local design
+    path, the options and the settings snapshot (every render and feature setting, with
+    the design row under "design": its blob may have become the assembly blob)."""
+    settings = get_settings()
+    source = get_source(design["source_id"])
     forge = Forge(source["provider"], source["host"])
     progress(0.0, "downloading design")
     work = settings.work_dir / design["id"]
@@ -540,14 +598,6 @@ def _render(settings, source: dict, design: dict, progress) -> str:
             raise SourceError(f"{design['path']} is not a SolidCraft design")
         local = work / filename
         local.write_bytes(data)
-
-    stem = slug(filename.rsplit(".", 1)[0])
-    set_id = sets.set_id_for(design["blob_sha"])
-    out_dir = settings.renders_dir / design["id"] / set_id
-    # Written aside and swapped in when done, so a failed or cancelled re-render of the
-    # same version never leaves the design without its set.
-    stage = sets.staging_dir(design["id"], set_id)
-    sets.discard(stage)
     opts = get_options(design["id"])  # repo .sklent.yaml overrides applied (F25)
     all_settings = get_all_settings(design["id"])
     try:  # views: this render's outputs choice and the design's highlight (F17, F20)
@@ -555,15 +605,63 @@ def _render(settings, source: dict, design: dict, progress) -> str:
         opts, all_settings = render_overrides(design["id"], opts, all_settings)
     except ImportError:
         pass
+    all_settings.update(asdict(opts))  # the snapshot alone rebuilds the options (a helper has no DB)
     # Every step sees the design row (specs' meta.design_row) next to the settings.
     all_settings["design"] = {**design, "provider": source["provider"], "host": source["host"]}
+    return local, opts, all_settings
+
+
+def render_here(local: Path, design: dict, opts: RenderOptions, all_settings: dict[str, Any],
+                progress=lambda f, m: None, *, renderer: str | None = None,
+                processes: int | None = None) -> tuple[Path, list, dict]:
+    """The middle of a render, on this server: render the set into its staging folder.
+    Returns the stage, the outputs and the report (also written as report.json)."""
+    from . import sets
+
+    filename = design["path"].rsplit("/", 1)[-1]
+    stem = slug(filename.rsplit(".", 1)[0])
+    # Written aside and swapped in when done, so a failed or cancelled re-render of the
+    # same version never leaves the design without its set.
+    stage = sets.staging_dir(design["id"], sets.set_id_for(design["blob_sha"]))
+    sets.discard(stage)
+    extra: dict[str, Any] = {}
+    if renderer:
+        extra["renderer"] = renderer
+    if processes:
+        extra["processes"] = processes
     outputs, report = render_set(local, stage, stem, opts,
                                  lambda f, m: progress(0.02 + 0.86 * f, m),
-                                 settings=all_settings)
+                                 settings=all_settings, **extra)
+    inputs = _scan_inputs()
     if inputs:
         report["inputs"] = inputs.links.report_for(local)
     (stage / "report.json").write_text(json.dumps(report, indent=2))
-    shutil.rmtree(work, ignore_errors=True)
+    shutil.rmtree(get_settings().work_dir / design["id"], ignore_errors=True)
+    return stage, outputs, report
+
+
+def finish_render(design: dict, stage: Path, outputs: list, report: dict,
+                  progress=lambda f, m: None, *, settings: dict[str, Any] | None = None,
+                  cancelled=None) -> str:
+    """The last part of a render, on the server, wherever the set was rendered: keep the
+    set (F1: one set per version, older sets kept), file it into Kist as new versions of
+    the previous set's items, update the design row, then apply the keep policy.
+    `settings` is the snapshot the set was rendered with (default: the current settings);
+    `cancelled()` is checked before the set is promoted (default: this worker's job was
+    cancelled). Host renders and helper renders both end here."""
+    from . import sets
+
+    cancelled = cancelled or _cancel_requested
+    server = get_settings()
+    all_settings = settings if settings is not None else get_all_settings(design["id"])
+    source = get_source(design["source_id"])
+    forge = Forge(source["provider"], source["host"])
+    inputs = _scan_inputs()
+    palette = (report.get("options") or {}).get("palette") or all_settings.get("palette") or "cool-grey"
+    filename = design["path"].rsplit("/", 1)[-1]
+    stem = slug(filename.rsplit(".", 1)[0])
+    set_id = sets.set_id_for(design["blob_sha"])
+    out_dir = server.renders_dir / design["id"] / set_id
 
     if all_settings.get("quick_check") and sets.latest_set(design["id"]) is not None:
         return _keep_quick_check(design, stage, outputs)
@@ -576,8 +674,9 @@ def _render(settings, source: dict, design: dict, progress) -> str:
         "id": set_id, "design_id": design["id"], "blob_sha": design["blob_sha"],
         "commit_sha": commit_sha, "head_sha": design["commit_sha"], "ref": design["ref"],
         "path": design["path"], "rendered_at": db.now(), "files": [asdict(o) for o in outputs],
-        "commit": commit, "tags": [], "palette": opts.palette,
+        "commit": commit, "tags": [], "palette": palette,
         "kist_folder_id": design["kist_folder_id"], "kist_items": [],
+        "renderer": report.get("renderer"), "host": report.get("host"),
     }
 
     kist = Kist()
@@ -586,10 +685,10 @@ def _render(settings, source: dict, design: dict, progress) -> str:
     if kist.enabled:
         progress(0.9, "filing into Kist")
         where_, ref_tag = _kist_ref(inputs, source)
-        folder_id = kist.ensure_folder([settings.kist_root_folder, design["owner"], design["repo"], stem,
+        folder_id = kist.ensure_folder([server.kist_root_folder, design["owner"], design["repo"], stem,
                                         *([where_] if where_ else [])])
         base_tags = ["solidcraft", f"repo:{design['owner']}/{design['repo']}", f"design:{stem}",
-                     f"palette:{opts.palette}", f"rev:{commit_sha[:10]}", *([ref_tag] if ref_tag else [])]
+                     f"palette:{palette}", f"rev:{commit_sha[:10]}", *([ref_tag] if ref_tag else [])]
         notes = (f"{design['owner']}/{design['repo']}:{design['path']} at "
                  f"{commit_sha[:10]}, rendered by sklent")
         before = {(i.get("style"), i.get("variant")): i["id"] for i in (previous or {}).get("kist_items") or []}
@@ -617,7 +716,7 @@ def _render(settings, source: dict, design: dict, progress) -> str:
 
     sets.write_meta(stage, meta)
     progress(0.97, "keeping the set")
-    if _cancel_requested():
+    if cancelled():
         raise JobCancelled(f"render of {design['path']} was cancelled")
     sets.promote(stage, out_dir)
     with db.connect() as conn:

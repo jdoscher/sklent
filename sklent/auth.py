@@ -6,8 +6,13 @@ read. Everything else answers 403. A tool counts as read-only when it is in
 VIEWER_TOOLS, was added with `allow_viewer_tools(...)`, or declares
 `annotations=ToolAnnotations(readOnlyHint=True)`.
 
-The role is put in the request scope: `scope["state"]["sk_role"]` is "admin" or "viewer"
-(`GET /api/whoami` reports it), and `scope["state"]["sk_viewer"]` names the viewer token.
+A helper token (0.2.1, a render helper's) may call only the helper protocol: the paths
+in `helper_may_call` (`/api/helpers/claim`, `/api/helpers/jobs/...`). Every other route,
+and all of MCP, answers 403 to it.
+
+The role is put in the request scope: `scope["state"]["sk_role"]` is "admin", "viewer" or
+"helper" (`GET /api/whoami` reports it), `scope["state"]["sk_viewer"]` names the token and
+`scope["state"]["sk_token_id"]` is its id.
 """
 
 import json
@@ -25,7 +30,9 @@ WEAK_TOKENS = {"", "change-me", "changeme", "secret", "token"}
 MIN_TOKEN_LENGTH = 16
 
 # API paths a viewer may not read even with GET.
-VIEWER_DENIED_PREFIXES = ("/api/tokens",)
+VIEWER_DENIED_PREFIXES = ("/api/tokens", "/api/helpers")
+# MCP tools that only read but are for the admin (they list the server's machinery).
+ADMIN_ONLY_TOOLS = {"list_helpers"}
 # MCP tools a viewer may call (they only read). Features add theirs with allow_viewer_tools()
 # or by marking the tool read-only (ToolAnnotations(readOnlyHint=True)).
 VIEWER_TOOLS = {
@@ -56,7 +63,14 @@ def viewer_for(token: str) -> dict | None:
     return tokens.lookup(token)
 
 
+def helper_may_call(path: str) -> bool:
+    """The only paths a helper token reaches: claim, and its jobs' inputs/progress/result/fail."""
+    return path == "/api/helpers/claim" or path.startswith("/api/helpers/jobs/")
+
+
 def viewer_may_call(tool: str) -> bool:
+    if tool in ADMIN_ONLY_TOOLS:
+        return False
     try:
         from .mcp_server import WRITE_TOOLS
     except Exception:  # noqa: BLE001
@@ -119,9 +133,17 @@ class BearerTokenMiddleware:
             await JSONResponse({"detail": "invalid or missing token"}, status_code=401)(scope, receive, send)
             return
         state = scope.setdefault("state", {})
-        state["sk_role"] = "viewer" if viewer else "admin"
-        if viewer:
+        role = (viewer.get("scope") or "viewer") if viewer else "admin"
+        state["sk_role"] = role
+        if role == "helper":
             state["sk_viewer"] = viewer["name"]
+            state["sk_token_id"] = viewer["id"]
+            if not helper_may_call(path):
+                await _denied("a helper token can only claim and report render jobs")(scope, receive, send)
+                return
+        elif viewer:
+            state["sk_viewer"] = viewer["name"]
+            state["sk_token_id"] = viewer["id"]
             if path.startswith("/api"):
                 if scope["method"] not in ("GET", "HEAD"):
                     await _denied("this is a read-only viewer token")(scope, receive, send)

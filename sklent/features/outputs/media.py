@@ -13,6 +13,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from ...render import ffmpeg
 from . import brand
 from .common import (
     SHEET_VARIANTS,
@@ -34,7 +35,7 @@ from .common import (
 
 
 def _ff(*args: str) -> None:
-    r = subprocess.run(["ffmpeg", "-loglevel", "error", "-y", *args], capture_output=True, text=True)
+    r = subprocess.run([ffmpeg(), "-loglevel", "error", "-y", *args], capture_output=True, text=True)
     if r.returncode != 0:
         raise OutputError(f"ffmpeg failed: {r.stderr.strip()[-600:]}", 500)
 
@@ -105,7 +106,7 @@ def video_source(s: dict, aspect: float) -> Path:
 def _probe(src: Path) -> tuple[int, int, float]:
     """Width, height and duration from ffmpeg's own banner (ffprobe isn't always installed)."""
     import re
-    r = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(src)], capture_output=True, text=True)
+    r = subprocess.run([ffmpeg(), "-hide_banner", "-i", str(src)], capture_output=True, text=True)
     size = re.search(r"Video:.*?(\d{2,5})x(\d{2,5})", r.stderr)
     dur = re.search(r"Duration: (\d+):(\d+):([\d.]+)", r.stderr)
     if not size:

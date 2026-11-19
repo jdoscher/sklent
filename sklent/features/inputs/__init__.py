@@ -20,6 +20,7 @@ from ...sources import SourceError, design_format
 from . import classes, links, refs, tokens
 
 SCHEMA = "\n".join([repo_config.SCHEMA, links.SCHEMA, refs.SCHEMA, classes.SCHEMA, tokens.SCHEMA])
+MIGRATE = tokens.migrate
 
 
 # ---------------------------------------------------------------- settings
@@ -207,6 +208,7 @@ def put_class(source_id: str, body: ClassPatch):
 
 class TokenCreate(BaseModel):
     name: str
+    scope: str = "viewer"  # viewer | helper (a render helper's token, 0.2.1)
 
 
 @router.get("/tokens")
@@ -217,7 +219,7 @@ def list_viewer_tokens():
 @router.post("/tokens", status_code=201)
 def create_viewer_token(body: TokenCreate):
     try:
-        return tokens.create(body.name)
+        return tokens.create(body.name, body.scope)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
 

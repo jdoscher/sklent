@@ -36,7 +36,7 @@ import numpy as np
 
 from . import palette as palettes
 from .config import get_settings
-from .solidcraft import SolidCraft, SolidCraftError
+from .solidcraft import SolidCraft, SolidCraftError, gpu_info
 
 STYLES = ("shaded", "wireframe")
 FOV = 0.5  # vertical field of view, radians (~29°): a gentle perspective
@@ -271,8 +271,20 @@ def placed_bounds(info: list[dict]) -> tuple[list[float], list[float]] | None:
 
 # ---------------------------------------------------------------- encoding
 
+def ffmpeg() -> str:
+    """The ffmpeg to run (SK_FFMPEG; a full path on a Mac helper)."""
+    return get_settings().ffmpeg or "ffmpeg"
+
+
+def host_name() -> str:
+    """This machine's name in report.json (SK_HOST_NAME, else the host name)."""
+    import socket
+
+    return get_settings().host_name or socket.gethostname() or "host"
+
+
 def _ff(*args: str) -> None:
-    r = subprocess.run(["ffmpeg", "-loglevel", "error", "-y", *args], capture_output=True, text=True)
+    r = subprocess.run([ffmpeg(), "-loglevel", "error", "-y", *args], capture_output=True, text=True)
     if r.returncode != 0:
         raise RuntimeError(f"ffmpeg failed: {r.stderr.strip()[-600:]}")
 
@@ -532,12 +544,15 @@ def plan(opts: RenderOptions, settings: dict | None) -> Plan:
 def render_set(design: Path, out_dir: Path, stem: str, opts: RenderOptions,
                progress: Progress = lambda f, m: None,
                processes: int | None = None,
-               settings: dict | None = None) -> tuple[list[Output], dict]:
+               settings: dict | None = None, renderer: str | None = None,
+               host: str | None = None) -> tuple[list[Output], dict]:
     """Render everything into out_dir. Returns the outputs and a small report.
 
     `processes` caps the SolidCraft processes used for frames (default: the
     SK_RENDER_PROCESSES setting); see FAN_OUT_MS for when more than one is used.
-    `settings` is the full settings dict (RenderOptions plus registered feature keys)."""
+    `settings` is the full settings dict (RenderOptions plus registered feature keys).
+    `renderer` is gpu (default) or software (Mesa lavapipe: no GPU at all); the report
+    records what SolidCraft actually landed on (`renderer`, `adapter`) and `host`."""
     opts.validate()
     if processes is None:
         processes = get_settings().render_processes
@@ -550,11 +565,16 @@ def render_set(design: Path, out_dir: Path, stem: str, opts: RenderOptions,
     pl = plan(opts, settings)
     outputs: list[Output] = []
     report: dict = {"options": asdict(opts), "clamped": {}}
+    used = gpu_info(renderer)
+    report["renderer"] = used["renderer"]
+    report["adapter"] = used.get("adapter")
+    report["host"] = host or host_name()
     timings: dict[str, float] = {}
     clock = time.monotonic()
+    sc_args = {"renderer": renderer} if renderer else {}
 
     def open_sc() -> SolidCraft:
-        return SolidCraft(design, out_dir)
+        return SolidCraft(design, out_dir, **sc_args)
 
     progress(0.01, "opening design")
     with open_sc() as sc:

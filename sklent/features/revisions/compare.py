@@ -21,6 +21,7 @@ import numpy as np
 from PIL import Image
 
 from ... import sets
+from ...render import ffmpeg
 
 THRESHOLD = 24  # of 255, on any channel: under this is renderer noise (the spike saw <0.07 % of pixels move)
 VIDEO = (".mp4", ".gif")
@@ -78,7 +79,7 @@ def image_of(s: dict, style: str, variant: str, frame: int | None = None) -> Pat
         frame = min(frame, n - 1)
     out = _cache_dir(s["design_id"]) / f"frame-{_key(src, src.stat().st_mtime_ns, frame)}.png"
     if not out.is_file():
-        r = subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", str(src), "-vf",
+        r = subprocess.run([ffmpeg(), "-loglevel", "error", "-y", "-i", str(src), "-vf",
                             f"select=eq(n\\,{frame})", "-frames:v", "1", str(out)],
                            capture_output=True, text=True)
         if r.returncode != 0 or not out.is_file():

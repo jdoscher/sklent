@@ -31,6 +31,15 @@ class Settings(BaseSettings):
     # Most SolidCraft processes rendering one design's frames at once. More are used only
     # when a frame is slow (big designs) and free memory holds them; each loads the design.
     render_processes: int = Field(default=4, ge=1, le=16)
+    # Where this server renders (0.2.1): gpu, software (Mesa lavapipe, the CPU) or off (only
+    # render helpers render). The Rendering settings override it; this is the default.
+    renderer: str = "gpu"
+    # This machine's name in report.json and the UI (default: the host name).
+    host_name: str = ""
+    # ffmpeg to encode with (a full path on a Mac helper, e.g. /opt/homebrew/bin/ffmpeg).
+    ffmpeg: str = "ffmpeg"
+    # Mesa lavapipe's Vulkan ICD for software rendering (default: found under /usr/share/vulkan).
+    lvp_icd: str = ""
 
     @property
     def db_path(self) -> Path:

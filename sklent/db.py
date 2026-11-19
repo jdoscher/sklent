@@ -65,7 +65,9 @@ CREATE TABLE IF NOT EXISTS jobs (
     error TEXT,
     created_at TEXT NOT NULL,
     started_at TEXT,
-    finished_at TEXT
+    finished_at TEXT,
+    helper TEXT,                         -- the render helper running it (0.2.1), NULL = this server
+    attempts INTEGER NOT NULL DEFAULT 0  -- helper claims so far (0.2.1)
 );
 CREATE INDEX IF NOT EXISTS jobs_status ON jobs(status, id);
 CREATE TABLE IF NOT EXISTS settings (
@@ -120,16 +122,30 @@ def _adopt_legacy_db() -> None:
             old.rename(path.with_name(path.name + suffix))
 
 
+def add_columns(conn: sqlite3.Connection, table: str, columns: dict[str, str]) -> None:
+    """Add columns an older database lacks (`{name: "TEXT NOT NULL DEFAULT 'x'"}`)."""
+    have = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+    for name, decl in columns.items():
+        if name not in have:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+
+
 def init() -> None:
     _adopt_legacy_db()
     with connect() as conn:
         conn.executescript(SCHEMA)
+        add_columns(conn, "jobs", {"helper": "TEXT", "attempts": "INTEGER NOT NULL DEFAULT 0"})
         from . import features
         for extra in features.schemas():
             conn.executescript(extra)
-        # A job the process died during will never finish; requeue it.
-        conn.execute("UPDATE jobs SET status = 'queued', started_at = NULL WHERE status = 'running'")
-        conn.execute("UPDATE designs SET status = 'queued' WHERE status = 'rendering'")
+        for migrate in features.migrations():
+            migrate(conn)
+        # A job the process died during will never finish; requeue it. A render helper's job
+        # carries on: its lease expires (and requeues it) if the helper went away too.
+        conn.execute("UPDATE jobs SET status = 'queued', started_at = NULL WHERE status = 'running' "
+                     "AND helper IS NULL")
+        conn.execute("UPDATE designs SET status = 'queued' WHERE status = 'rendering' AND id NOT IN "
+                     "(SELECT design_id FROM jobs WHERE status = 'running' AND design_id IS NOT NULL)")
 
 
 def row(r: sqlite3.Row | None) -> dict[str, Any] | None:
