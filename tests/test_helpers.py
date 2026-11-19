@@ -136,11 +136,11 @@ def app():
     return a
 
 
-def _helper_token(name="dev0"):
+def _helper_token(name="gpu-box"):
     return tokens.create(name, "helper")["token"]
 
 
-def _claim_body(name="dev0", version="0.44.1", **kw):
+def _claim_body(name="gpu-box", version="0.44.1", **kw):
     return {"name": name, "solidcraft_version": version, "renderer": "gpu", "gpu": "Fake GPU", "mem_gb": 15.0, **kw}
 
 
@@ -169,7 +169,7 @@ def _stage_tar(
     return buf.getvalue()
 
 
-def _good_result(stem="case", host="dev0"):
+def _good_result(stem="case", host="gpu-box"):
     png = io.BytesIO()
     from PIL import Image
 
@@ -187,7 +187,7 @@ def _good_result(stem="case", host="dev0"):
     return files, outputs
 
 
-def _seen(name="dev0", minutes_ago=0):
+def _seen(name="gpu-box", minutes_ago=0):
     t = (datetime.now(UTC) - timedelta(minutes=minutes_ago)).isoformat(timespec="seconds")
     with db.connect() as conn:
         conn.execute("INSERT OR REPLACE INTO helpers (name, first_seen, last_seen) VALUES (?,?,?)", [name, t, t])
@@ -281,13 +281,13 @@ def test_host_plan_follows_device_quiet_hours_and_helpers(settings):
     assert control.host_plan(datetime(2026, 11, 19, 12, 0).astimezone())["renderer"] == "gpu"
     jobs.set_options({"render_quiet_hours": ""})
 
-    _seen("dev0", minutes_ago=2)  # a helper around: the host waits for the fallback
+    _seen("gpu-box", minutes_ago=2)  # a helper around: the host waits for the fallback
     p = control.host_plan()
     assert p["take"] == "older" and p["helper_seen"]
     jobs.set_options({"helpers_fallback_minutes": 0})
     assert control.host_plan()["take"] == "none"
     jobs.set_options({"helpers_fallback_minutes": 30})
-    _seen("dev0", minutes_ago=11)  # not seen within helpers_seen_window (10 min)
+    _seen("gpu-box", minutes_ago=11)  # not seen within helpers_seen_window (10 min)
     assert control.host_plan()["take"] == "all"
 
 
@@ -295,7 +295,7 @@ def test_a_skipped_render_doesnt_block_the_scans_behind_it(settings):
     did = _design()
     r = jobs.enqueue("render", design_id=did)
     s = jobs.enqueue("scan", source_id=jobs.get_design(did)["source_id"])
-    _seen("dev0")
+    _seen("gpu-box")
     job = jobs._claim()
     assert job["id"] == s["id"] and job["kind"] == "scan"  # the render waits for a helper
     assert jobs._claim() is None
@@ -306,7 +306,7 @@ def test_a_skipped_render_doesnt_block_the_scans_behind_it(settings):
 def test_fallback_of_one_minute_takes_the_render_after_a_minute(settings):
     did = _design()
     r = jobs.enqueue("render", design_id=did)
-    _seen("dev0")
+    _seen("gpu-box")
     jobs.set_options({"helpers_fallback_minutes": 1})
     assert jobs._claim() is None
     _age(r["id"], 1)
@@ -351,7 +351,7 @@ def test_db_init_keeps_a_helpers_running_job(settings):
     did = _design()
     j = jobs.enqueue("render", design_id=did)
     with db.connect() as conn:
-        conn.execute("UPDATE jobs SET status = 'running', helper = 'dev0' WHERE id = ?", [j["id"]])
+        conn.execute("UPDATE jobs SET status = 'running', helper = 'gpu-box' WHERE id = ?", [j["id"]])
         conn.execute("UPDATE designs SET status = 'rendering' WHERE id = ?", [did])
     db.init()
     with db.connect() as conn:
@@ -363,7 +363,7 @@ def test_db_init_keeps_a_helpers_running_job(settings):
 
 
 def test_helper_tokens_have_their_own_scope_and_prefix(settings):
-    t = tokens.create("dev0", "helper")
+    t = tokens.create("gpu-box", "helper")
     assert t["token"].startswith("skh") and t["scope"] == "helper"
     assert tokens.lookup(t["token"])["scope"] == "helper"
     assert tokens.list_tokens()[0]["scope"] == "helper"
@@ -478,7 +478,7 @@ def test_claim_render_upload_files_the_set_like_a_host_render(fake, settings, ap
     r = api.post("/api/helpers/claim", headers=h, json=_claim_body())
     assert r.status_code == 200, r.text
     c = r.json()
-    assert c["job"]["id"] == job["id"] and c["job"]["helper"] == "dev0" and c["lease_s"] == 300
+    assert c["job"]["id"] == job["id"] and c["job"]["helper"] == "gpu-box" and c["lease_s"] == 300
     assert c["design"]["id"] == did and c["design"]["provider"] == "github"
     assert c["settings_snapshot"]["palette"] == "cool-grey" and "render_device" in c["settings_snapshot"]
     assert c["design_file"] == "repo/parts/case.sc" and c["stem"] == "case"
@@ -486,7 +486,7 @@ def test_claim_render_upload_files_the_set_like_a_host_render(fake, settings, ap
         assert conn.execute("SELECT status FROM jobs WHERE id = ?", [scan["id"]]).fetchone()[0] == "queued"
     assert jobs.get_design(did)["status"] == "rendering"
 
-    tar = api.get(f"/api/helpers/jobs/{job['id']}/inputs.tar", headers=h, params={"name": "dev0"})
+    tar = api.get(f"/api/helpers/jobs/{job['id']}/inputs.tar", headers=h, params={"name": "gpu-box"})
     assert tar.status_code == 200
     with tarfile.open(fileobj=io.BytesIO(tar.content)) as t:
         assert t.getnames() == ["repo/parts/case.sc"]
@@ -496,12 +496,12 @@ def test_claim_render_upload_files_the_set_like_a_host_render(fake, settings, ap
     p = api.post(
         f"/api/helpers/jobs/{job['id']}/progress",
         headers=h,
-        params={"name": "dev0"},
+        params={"name": "gpu-box"},
         json={"fraction": 0.5, "message": "frame 10/20"},
     )
     assert p.json() == {"cancel": False}
     j = api.get(f"/api/jobs/{job['id']}", headers=H).json()
-    assert j["progress"] == 0.45 and j["message"] == "frame 10/20" and j["helper"] == "dev0"
+    assert j["progress"] == 0.45 and j["message"] == "frame 10/20" and j["helper"] == "gpu-box"
     # another helper can't report on it
     assert api.post(
         f"/api/helpers/jobs/{job['id']}/progress", headers=h, params={"name": "other"}, json={"fraction": 0.6}
@@ -509,7 +509,7 @@ def test_claim_render_upload_files_the_set_like_a_host_render(fake, settings, ap
 
     files, outputs = _good_result()
     up = api.post(
-        f"/api/helpers/jobs/{job['id']}/result", headers=h, params={"name": "dev0"}, content=_stage_tar(files, outputs)
+        f"/api/helpers/jobs/{job['id']}/result", headers=h, params={"name": "gpu-box"}, content=_stage_tar(files, outputs)
     )
     assert up.status_code == 200, up.text
     assert up.json()["done"] and "filed 1 in Kist" in up.json()["message"]
@@ -518,16 +518,16 @@ def test_claim_render_upload_files_the_set_like_a_host_render(fake, settings, ap
     folder = sets.latest_set(did)["dir"]
     assert (folder / "views.json").is_file() and (folder / "case-shaded-hires-16x9.png").is_file()
     report = json.loads((folder / "report.json").read_text())
-    assert report["host"] == "dev0" and report["renderer"] == "gpu"
+    assert report["host"] == "gpu-box" and report["renderer"] == "gpu"
     assert fake["kist"].uploads[0]["file"] == "case-shaded-hires-16x9.png"
     assert "rev:" + C1[:10] in fake["kist"].uploads[0]["tags"]
     j = api.get(f"/api/jobs/{job['id']}", headers=H).json()
-    assert j["status"] == "done" and j["helper"] == "dev0"
+    assert j["status"] == "done" and j["helper"] == "gpu-box"
     helpers = api.get("/api/helpers", headers=H).json()
-    assert helpers[0]["name"] == "dev0" and helpers[0]["jobs_done"] == 1 and helpers[0]["active"]
+    assert helpers[0]["name"] == "gpu-box" and helpers[0]["jobs_done"] == 1 and helpers[0]["active"]
     assert helpers[0]["version"] == "0.44.1" and helpers[0]["gpu"] == "Fake GPU" and helpers[0]["current_job"] is None
     assert not (settings.work_dir / did).exists()
-    assert api.get(f"/api/designs/{did}", headers=H).json()["report"]["host"] == "dev0"
+    assert api.get(f"/api/designs/{did}", headers=H).json()["report"]["host"] == "gpu-box"
 
     # a second version, rendered by the helper too: its Kist items are versions of the first
     with db.connect() as conn:
@@ -539,7 +539,7 @@ def test_claim_render_upload_files_the_set_like_a_host_render(fake, settings, ap
         api.post(
             f"/api/helpers/jobs/{job2['id']}/result",
             headers=h,
-            params={"name": "dev0"},
+            params={"name": "gpu-box"},
             content=_stage_tar(files, outputs),
         ).status_code
         == 200
@@ -582,7 +582,7 @@ def test_bad_uploads_are_refused_and_fail_the_job(fake, settings, api):
         r = api.post(
             f"/api/helpers/jobs/{job['id']}/result",
             headers=h,
-            params={"name": "dev0"},
+            params={"name": "gpu-box"},
             content=_stage_tar(fs, outs, man, extra),
         )
         assert r.status_code == 422 and why in r.json()["detail"], (why, r.text)
@@ -599,7 +599,7 @@ def test_bad_uploads_are_refused_and_fail_the_job(fake, settings, api):
         info = tarfile.TarInfo("report.json")
         info.size = 2
         t.addfile(info, io.BytesIO(b"{}"))
-    r = api.post(f"/api/helpers/jobs/{job['id']}/result", headers=h, params={"name": "dev0"}, content=buf.getvalue())
+    r = api.post(f"/api/helpers/jobs/{job['id']}/result", headers=h, params={"name": "gpu-box"}, content=buf.getvalue())
     assert r.status_code == 422 and server.MANIFEST in r.json()["detail"]
 
 
@@ -620,20 +620,20 @@ def test_an_expired_lease_requeues_then_fails_after_max_attempts(fake, settings,
     assert j[0]["status"] == "queued" and not (settings.work_dir / did).exists()
     # the late helper finds out it lost the job
     assert api.post(
-        f"/api/helpers/jobs/{job['id']}/progress", headers=h, params={"name": "dev0"}, json={"fraction": 0.9}
+        f"/api/helpers/jobs/{job['id']}/progress", headers=h, params={"name": "gpu-box"}, json={"fraction": 0.9}
     ).json() == {"cancel": True}
     files, outputs = _good_result()
     assert (
         api.post(
             f"/api/helpers/jobs/{job['id']}/result",
             headers=h,
-            params={"name": "dev0"},
+            params={"name": "gpu-box"},
             content=_stage_tar(files, outputs),
         ).status_code
         == 409
     )
     # the second claim (another helper run) can finish it
-    c = api.post("/api/helpers/claim", headers=h, json=_claim_body(name="dev0b")).json()
+    c = api.post("/api/helpers/claim", headers=h, json=_claim_body(name="gpu-box2")).json()
     assert c["job"]["id"] == job["id"] and c["job"]["attempts"] == 2
     expire()
     jobs.housekeeping()  # the worker's turn reaps too
@@ -650,7 +650,7 @@ def test_a_stopped_helper_requeues_and_a_real_failure_fails(fake, settings, api)
     r = api.post(
         f"/api/helpers/jobs/{job['id']}/fail",
         headers=h,
-        params={"name": "dev0"},
+        params={"name": "gpu-box"},
         json={"error": "helper stopped", "retry": True},
     )
     assert r.json() == {"requeued": True}
@@ -659,7 +659,7 @@ def test_a_stopped_helper_requeues_and_a_real_failure_fails(fake, settings, api)
     r = api.post(
         f"/api/helpers/jobs/{job['id']}/fail",
         headers=h,
-        params={"name": "dev0"},
+        params={"name": "gpu-box"},
         json={"error": "solidcraft-cli exited during screenshot"},
     )
     assert r.json() == {"requeued": False}
@@ -680,14 +680,14 @@ def test_cancelling_a_helpers_job_stops_it_and_keeps_the_old_set(fake, settings,
     assert api.post(f"/api/jobs/{job['id']}/cancel", headers=H).json()["status"] == "cancelled"
     assert jobs.get_design(did)["status"] == "rendered"
     assert api.post(
-        f"/api/helpers/jobs/{job['id']}/progress", headers=h, params={"name": "dev0"}, json={"fraction": 0.3}
+        f"/api/helpers/jobs/{job['id']}/progress", headers=h, params={"name": "gpu-box"}, json={"fraction": 0.3}
     ).json() == {"cancel": True}
     files, outputs = _good_result()
     assert (
         api.post(
             f"/api/helpers/jobs/{job['id']}/result",
             headers=h,
-            params={"name": "dev0"},
+            params={"name": "gpu-box"},
             content=_stage_tar(files, outputs),
         ).status_code
         == 409
@@ -727,7 +727,7 @@ def test_render_state_says_quiet_hours_helpers_only(settings, api, monkeypatch):
 # ---------------------------------------------------------------- the client
 
 
-def _client_helper(api, name="dev0", **kw):
+def _client_helper(api, name="gpu-box", **kw):
     c = TestClient(app(), headers={"Authorization": f"Bearer {_helper_token(name)}"})
     return hclient.Helper("http://testserver", "unused", name, client=c, **kw)
 
@@ -739,12 +739,12 @@ def test_the_client_renders_a_job_end_to_end(fake, settings, api):
     assert helper.run(once=True) == 0
     call = fake["calls"][-1]
     assert call["local"].name == "case.sc" and call["kw"]["renderer"] == "software"
-    assert call["kw"]["processes"] == 2 and call["kw"]["host"] == "dev0"
+    assert call["kw"]["processes"] == 2 and call["kw"]["host"] == "gpu-box"
     assert call["kw"]["settings"]["design"]["id"] == did
     j = api.get(f"/api/jobs/{job['id']}", headers=H).json()
     assert j["status"] == "done", j
     report = json.loads((sets.latest_set(did)["dir"] / "report.json").read_text())
-    assert report["host"] == "dev0" and report["renderer"] == "software"
+    assert report["host"] == "gpu-box" and report["renderer"] == "software"
     assert "helper_total" in report["timings_s"]
     assert helper.run(once=True) == 0  # nothing left: 204
 
@@ -757,7 +757,7 @@ def test_the_client_reports_a_refusal_and_bad_tokens(fake, settings, api, monkey
     bad = hclient.Helper(
         "http://testserver",
         "x",
-        "dev0",
+        "gpu-box",
         client=TestClient(app(), headers=H | {"Authorization": "Bearer skh" + "x" * 32}),
     )
     assert bad.run(once=True) == 3
@@ -936,7 +936,7 @@ def test_render_set_records_renderer_and_host(monkeypatch, tmp_path, settings):
         render.RenderOptions(outputs=[]),
         processes=1,
         renderer="software",
-        host="quarry",
+        host="mac-mini",
     )
-    assert report["renderer"] == "software" and report["host"] == "quarry" and report["adapter"] == "Iris Xe"
+    assert report["renderer"] == "software" and report["host"] == "mac-mini" and report["adapter"] == "Iris Xe"
     assert opened == [{"renderer": "software"}]
