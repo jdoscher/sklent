@@ -1,5 +1,7 @@
 # Ubuntu 24.04 for a current Mesa: Intel/AMD GPUs render through Vulkan when /dev/dri is
-# passed in, and llvmpipe (software Vulkan) is the fallback when it isn't.
+# passed in, and llvmpipe (software Vulkan) is the fallback when it isn't. The software
+# renderer (render_device / SK_RENDERER=software) uses Mesa's lavapipe from the same package.
+# tzdata: quiet hours follow TZ. The same image runs `sklent helper` (docker-compose.helper.yml).
 FROM ubuntu:24.04
 
 ARG SOLIDCRAFT_VERSION=0.44.1
@@ -9,7 +11,7 @@ ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 DEBIAN_FRONTEND=noninteractive \
     PATH=/opt/venv/bin:/opt/solidcraft/bin:$PATH
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl ffmpeg python3 python3-venv \
+      ca-certificates curl ffmpeg python3 python3-venv tzdata \
       mesa-vulkan-drivers libvulkan1 libgl1 libegl1 libfontconfig1 \
       libxkbcommon0 libwayland-client0 libx11-6 libxcursor1 libxrandr2 libxi6 \
     && rm -rf /var/lib/apt/lists/*

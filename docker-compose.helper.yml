@@ -1,0 +1,21 @@
+# A render helper: this machine renders for a Sklent server (README "Render helpers").
+# The same image as the server, running `sklent helper` (no database, no data folder):
+#   cp .env.example.helper .env.helper   # and fill it in (Settings -> Helpers makes a token)
+#   docker compose --env-file .env.helper -f docker-compose.helper.yml up -d
+# Stop it with `docker compose -f docker-compose.helper.yml stop`: a job it was rendering
+# goes back to the server's queue.
+services:
+  helper:
+    build: .
+    command: ["sklent", "helper"]
+    env_file: .env.helper
+    # The GPU. Drop these two keys (and set SK_RENDERER=software) on a box without /dev/dri.
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - "${SK_RENDER_GID:-992}"
+    restart: unless-stopped
+    # time to tell the server "helper stopped" so the job requeues at once
+    stop_grace_period: 30s
+    healthcheck:
+      disable: true

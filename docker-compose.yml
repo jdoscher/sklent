@@ -11,6 +11,10 @@ services:
       SK_FORGEJO_TOKEN: ${SK_FORGEJO_TOKEN:-}
       SK_SCAN_INTERVAL_MINUTES: ${SK_SCAN_INTERVAL_MINUTES:-360}
       SK_RENDER_PROCESSES: ${SK_RENDER_PROCESSES:-4}
+      # gpu | software | off: where this server renders until Settings → Rendering says otherwise.
+      SK_RENDERER: ${SK_RENDERER:-gpu}
+      # Quiet hours (Settings → Rendering) are in this time zone.
+      TZ: ${TZ:-UTC}
     ports:
       - "${SK_PORT:-8090}:8000"
     volumes:
