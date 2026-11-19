@@ -47,6 +47,7 @@
 .sk-val .x { color: var(--text-dim); font-family: var(--sk-font-data); }
 .sk-val label { display: inline-flex; gap: 6px; align-items: center; }
 .sk-val.checks { gap: 20px; }
+.sk-val .checks { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 14px; max-width: 40ch; }
 .sk-pal { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 6px 20px 10px; margin: 0; border: 0; }
 .sk-pal label {
   display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 10px;

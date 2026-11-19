@@ -542,6 +542,11 @@ def _render(settings, source: dict, design: dict, progress) -> str:
     sets.discard(stage)
     opts = get_options(design["id"])  # repo .sklent.yaml overrides applied (F25)
     all_settings = get_all_settings(design["id"])
+    try:  # views: this render's outputs choice and the design's highlight (F17, F20)
+        from .features.views import render_overrides
+        opts, all_settings = render_overrides(design["id"], opts, all_settings)
+    except ImportError:
+        pass
     outputs, report = render_set(local, stage, stem, opts,
                                  lambda f, m: progress(0.02 + 0.86 * f, m),
                                  settings=all_settings)

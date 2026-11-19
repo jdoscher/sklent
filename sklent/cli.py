@@ -45,7 +45,14 @@ def _render(args) -> int:
         if not isinstance(extra, dict):
             print("sklent: --settings must be a JSON object", file=sys.stderr)
             return 2
-        settings.update(extra)
+        from .jobs import _EXTRA
+
+        for k, v in extra.items():  # feature settings go through their validators
+            settings[k] = _EXTRA[k][1](v) if k in _EXTRA and _EXTRA[k][1] else v
+    if args.outputs is not None:  # views (F17): which core outputs; '' = quick check
+        settings["outputs"] = [o.strip() for o in args.outputs.split(",") if o.strip()]
+    if args.highlight:  # views (F20)
+        settings["views_highlight_names"] = [n.strip() for n in args.highlight.split(",") if n.strip()]
     known = {f.name for f in fields(RenderOptions)}
     opts = RenderOptions(**{k: v for k, v in settings.items() if k in known})
     design = args.design.resolve()
@@ -101,6 +108,10 @@ def main(argv: list[str] | None = None) -> int:
     one.add_argument("--seconds", type=float, default=None, help="turntable length (default 8)")
     one.add_argument("--processes", type=int, default=None,
                      help="most SolidCraft processes for frames (default: SK_RENDER_PROCESSES)")
+    one.add_argument("--outputs", default=None,
+                     help="comma-separated core outputs (1080p,reel,discord,gif,social,hires); '' = quick check")
+    one.add_argument("--highlight", default=None,
+                     help="comma-separated body names or globs to render solid, the rest x-ray")
     one.add_argument("--settings", default=None,
                      help="render and feature settings as JSON, e.g. "
                           '\'{"styles": ["shaded"], "views_exploded": true}\'')

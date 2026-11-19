@@ -57,6 +57,14 @@ def render_report(folder: Path | None) -> dict[str, Any] | None:
     return out
 
 
+def _views(d: dict) -> dict[str, Any] | None:
+    try:
+        from .features.views.api import design_views
+    except ImportError:
+        return None
+    return design_views(d)
+
+
 def design_out(d: dict) -> dict[str, Any]:
     name = d["path"].rsplit("/", 1)[-1]
     base = f"/api/designs/{d['id']}/files/"
@@ -93,6 +101,7 @@ def design_out(d: dict) -> dict[str, Any]:
         "report": render_report(folder),
         "revisions": __import__("sklent.sets", fromlist=["summary"]).summary(d),  # F1: kept sets
         **_inputs_extra(d),  # inputs feature: format, inputs, config, ref_info, due
+        "views": _views(d),  # views area: quick-check still URL, bed fit (F17, F16)
     }
 
 

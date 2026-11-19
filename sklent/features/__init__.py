@@ -17,6 +17,7 @@ from types import ModuleType
 MODULES: list[str] = [
     "revisions",
     "inputs",
+    "views",
 ]
 
 _loaded: list[ModuleType] = []

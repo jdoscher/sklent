@@ -77,7 +77,8 @@ def _frame_names(out: Path) -> list[str]:
 
 
 def _check_set(tmp_path: Path, outputs, fake):
-    assert len(outputs) == 12  # 2 styles x (4 movies + 2 stills)
+    assert len(outputs) == 13  # the quick-check still + 2 styles x (4 movies + 2 stills)
+    assert outputs[0].variant == "preview"
     shots = [p for sc in fake.instances for p in sc.shots]
     frames = [p for p in shots if p.parent.parent.name == "_frames"]
     assert len(frames) == 192 and len(set(frames)) == 192  # every frame exactly once
@@ -89,7 +90,8 @@ def test_small_design_stays_in_one_process(tmp_path, fake):
     outputs, report = render_set(Path("d.sc"), tmp_path, "d", RenderOptions(**OPTS), processes=4)
     assert report["processes"] == 1 and len(fake.instances) == 1
     _check_set(tmp_path, outputs, fake)
-    assert set(report["timings_s"]) - {"steps"} == {"load", "frames", "stills", "guard_and_encode"}
+    assert set(report["timings_s"]) - {"steps"} == {"load", "measure", "preview", "frames", "stills",
+                                                    "guard_and_encode"}
 
 
 def test_slow_design_fans_out(tmp_path, fake, monkeypatch):

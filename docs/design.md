@@ -131,13 +131,19 @@ view change.
 `fn(design) -> { text, title } | null`. Badges are small neutral mono chips at the right of a
 tile's name line (`--chip-bg` / `--chip-text`); nothing is ever drawn over the render.
 
+### `registerTileFigure(fn)` — `js/tiles.js`
+
+`fn(design) -> url | null`: a picture for a tile whose design has no social still yet (the
+views area's quick-check still while a first render runs, or a quick-check-only set). The
+first non-null wins; a design with a `thumb_url` never asks.
+
 ### `registerSettingsGroup({ id, title, order, fields })` — `js/settings.js`
 
 A group in the render-settings spec sheet. Built-ins: palette (0), turntable (10), stills
 (20), GIF (30), output (40). Each field is
 `{ name, label, type, unit, min, max, step, options, hint }`; `type` is `number` (default),
-`select` (`options`: values or `{ value, label }`, the value's type is kept), `checkbox` or
-`text`. Values load from `GET /api/settings` by `name` and are sent in the same
+`select` (`options`: values or `{ value, label }`, the value's type is kept), `checkbox`,
+`text` or `checklist` (a list value, one checkbox per option, e.g. the `outputs` list). Values load from `GET /api/settings` by `name` and are sent in the same
 `PUT /api/settings` as the built-in fields, so the server must accept the new keys (add them
 to its settings first; it rejects unknown ones). A group may also pass `render(container, ctx)` to draw rows it
 manages itself under its heading (Settings → Tokens does); those aren't sent with Save.

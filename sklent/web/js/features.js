@@ -7,3 +7,4 @@ import './features/revisions.js';
 import './features/inputs-access.js';
 import './features/inputs-sources.js';
 import './features/inputs-classes.js';
+import './features/views.js';
