@@ -20,6 +20,8 @@ def main(argv: list[str] | None = None) -> int:
     one.add_argument("--seconds", type=float, default=8.0)
     one.add_argument("--processes", type=int, default=None,
                      help="most SolidCraft processes for frames (default: SK_RENDER_PROCESSES)")
+    one.add_argument("--settings", type=json.loads, default=None,
+                     help='feature settings as JSON, e.g. \'{"revisions_timelapse": true}\'')
     args = p.parse_args(argv)
 
     if args.cmd == "serve":
@@ -34,7 +36,8 @@ def main(argv: list[str] | None = None) -> int:
     stem = args.design.stem
     outputs, report = render_set(args.design.resolve(), args.out_dir.resolve(), stem, opts,
                                  lambda f, m: print(f"{f:4.0%} {m}", file=sys.stderr),
-                                 processes=args.processes)
+                                 processes=args.processes,
+                                 settings={**asdict(opts), **(args.settings or {})})
     print(json.dumps({"outputs": [asdict(o) for o in outputs], "report": report}, indent=2))
     return 0
 
