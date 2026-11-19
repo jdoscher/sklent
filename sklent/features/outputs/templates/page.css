@@ -41,7 +41,7 @@ td.n { white-space: nowrap; }
 .tb .w2 { grid-column: span 2; } .tb .w4 { grid-column: span 4; }
 .tb .k { display: block; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .tb .v { overflow-wrap: anywhere; }
-.tb .t { font: 400 22px/1.2 var(--display); }
+.tb .t .v { font: 400 22px/1.2 var(--display); }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
 .grid a { text-decoration: none; display: block; }
 .grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border: 1px solid var(--rule); }

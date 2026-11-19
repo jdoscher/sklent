@@ -5,6 +5,7 @@
 //   F19 photos · F6 presets (+ F23 brand) · F13 listing packs · F7 print files ·
 //   F5 project page · F26 Kist review
 
+import { ctx } from '../ctx.js';
 import { registerDetailSection } from '../detail.js';
 import { registerSettingsGroup } from '../settings.js';
 import { registerSidebarSection } from '../sidebar.js';
@@ -101,12 +102,18 @@ async function openSourceReview(ctx, src) {
 // ---------------------------------------------------------------- tile badge: real photos
 
 let photoCounts = {};
-async function refreshBadges() {
-  try { photoCounts = await api('/outputs/readiness'); } catch { photoCounts = {}; }
+let badgesStarted = false;
+async function refreshBadges(ctx) {
+  try { photoCounts = await api('/outputs/readiness'); } catch { return; }
+  ctx.emit();  // redraw the tiles with the counts
 }
-refreshBadges();
-setInterval(refreshBadges, 60_000);
 registerTileBadge((d) => {
+  if (!badgesStarted) {
+    // first tile drawn: the token is set by now (never call the API at import time)
+    badgesStarted = true;
+    setTimeout(() => refreshBadges(ctx), 0);
+    setInterval(() => refreshBadges(ctx), 60_000);
+  }
   const c = photoCounts[d.id];
   if (!c || !c.needed) return null;  // only for designs someone is listing (it has photos)
   return { text: `photos ${Math.min(c.photos, c.needed)}/${c.needed}`, title: `${c.site} asks for ${c.needed} real print photos; this design has ${c.photos}` };
