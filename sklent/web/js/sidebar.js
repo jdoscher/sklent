@@ -4,6 +4,8 @@
 // Seam: registerSidebarSection({ id, title, order, render(container, ctx) }) adds a
 // section; built-ins are views (0), sources (10) and jobs (20). render() runs after
 // every poll and view change, into the section's own container.
+// Seam: registerSourceAction({ id, icon, label, order, when(source), run(source, ctx) })
+// adds an icon button to each source row's actions (before Scan and Remove).
 
 import { ctx } from './ctx.js';
 import { $, $$, esc } from './dom.js';
@@ -23,6 +25,22 @@ export function registerSidebarSection({ id, title = '', order = 100, render, gr
   sections.push({ id, title, order, render, grow });
   sections.sort((a, b) => a.order - b.order);
   mounted = false;
+}
+
+const sourceActions = [];
+
+/** An icon button on every source row (when(source) hides it); run() may be async. */
+export function registerSourceAction({ id, icon: ic = 'plus', label, order = 100, when, run }) {
+  if (!id || !label || typeof run !== 'function') throw new Error('registerSourceAction needs an id, label and run()');
+  const i = sourceActions.findIndex((a) => a.id === id);
+  if (i >= 0) sourceActions.splice(i, 1);
+  sourceActions.push({ id, icon: ic, label, order, when, run });
+  sourceActions.sort((a, b) => a.order - b.order);
+}
+
+function sourceActionsHtml(s, leaf) {
+  return sourceActions.filter((a) => { try { return !a.when || a.when(s); } catch { return false; } })
+    .map((a) => `<button type="button" class="icon-btn s24" data-source-action="${esc(a.id)}" data-sid="${esc(s.id)}" aria-label="${esc(a.label)}: ${esc(leaf)}" title="${esc(a.label)}">${icon(a.icon, 14)}</button>`).join('');
 }
 
 export const VIEWS = [
@@ -60,6 +78,7 @@ function renderSources(el) {
       <span class="src"><b>${s.last_error ? `<span class="warn" title="${esc(s.last_error)}">${icon('triangle-alert', 14)}</span>` : ''}<span>${esc(leaf)}</span></b><i>${esc(parts.length ? parts.join('/') : s.provider)}</i></span>
       <span class="count">${s.designs}</span>
       <span class="row-actions">
+        ${sourceActionsHtml(s, leaf)}
         <button type="button" class="icon-btn s24" data-scan="${esc(s.id)}" aria-label="Scan ${esc(leaf)} now" title="Scan now">${icon('refresh-cw', 14)}</button>
         <button type="button" class="icon-btn s24" data-remove="${esc(s.id)}" aria-label="Remove ${esc(leaf)}" title="Remove source">${icon('x', 14)}</button>
       </span>
@@ -155,7 +174,14 @@ export function initSidebar() {
     const scan = e.target.closest('[data-scan]');
     const remove = e.target.closest('[data-remove]');
     const cancel = e.target.closest('[data-cancel]');
+    const action = e.target.closest('[data-source-action]');
     try {
+      if (action) {
+        const a = sourceActions.find((x) => x.id === action.dataset.sourceAction);
+        const s = state.sources.find((x) => x.id === action.dataset.sid);
+        if (a && s) await a.run(s, ctx);
+        return;
+      }
       if (scan) {
         await ctx.api(`/sources/${scan.dataset.scan}/scan`, { method: 'POST' });
         toast('Scan queued');

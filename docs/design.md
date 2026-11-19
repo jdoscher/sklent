@@ -56,7 +56,7 @@ change that breaks a text/surface pair fails `test_contrast.py`.
 | `sklent/web/js/store.js` | design system | state, poll loop, `onChange` / `emit` |
 | `sklent/web/js/ctx.js` | design system | the object handed to every seam callback |
 | `sklent/web/js/detail.js` | design system (seam) | `registerDetailSection`, `registerTitleBlockField` |
-| `sklent/web/js/sidebar.js` | design system (seam) | `registerSidebarSection` |
+| `sklent/web/js/sidebar.js` | design system (seam) | `registerSidebarSection`, `registerSourceAction` |
 | `sklent/web/js/tiles.js` | design system (seam) | `registerTileBadge` |
 | `sklent/web/js/settings.js` | design system (seam) | `registerSettingsGroup` |
 | `sklent/web/js/grid.js`, `theme.js`, `toast.js`, `confirm.js`, `format.js`, `icons.js`, `dom.js`, `main.js` | design system | |
@@ -125,6 +125,15 @@ The built-in cells read `design.report` (from the API: `bodies`, `hidden_bodies`
 A section in the sidebar (the drawer on a phone). Built-ins: `views` (0), `sources` (10),
 `jobs` (20, `grow: true`). `title: ''` draws no heading. `render` runs after every poll and
 view change.
+
+### `registerSourceAction({ id, icon, label, order, when, run })` — `js/sidebar.js`
+
+An icon button (`icon` is a Lucide name from `js/icons.js`) on every source row, before Scan
+and Remove, shown on hover (always on the phone). `when(source) -> bool` hides it;
+`run(source, ctx)` may be async and its errors become a toast. Used by the contact sheet.
+
+Files that aren't pictures or movies (PDF, CSV, Markdown) open in the viewer as a card with
+Open and Download, without dimension lines.
 
 ### `registerTileBadge(fn)` — `js/tiles.js`
 

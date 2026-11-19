@@ -102,6 +102,7 @@ def design_out(d: dict) -> dict[str, Any]:
         "revisions": __import__("sklent.sets", fromlist=["summary"]).summary(d),  # F1: kept sets
         **_inputs_extra(d),  # inputs feature: format, inputs, config, ref_info, due
         "views": _views(d),  # views area: quick-check still URL, bed fit (F17, F16)
+        "spec": json.loads((folder / "spec.json").read_text()) if folder and (folder / "spec.json").is_file() else None,
     }
 
 

@@ -8,3 +8,4 @@ import './features/inputs-access.js';
 import './features/inputs-sources.js';
 import './features/inputs-classes.js';
 import './features/views.js';
+import './features/specs.js';
