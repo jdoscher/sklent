@@ -42,6 +42,30 @@
 - A render set is found under the data dir even when the stored absolute path moved (a
   restored or relocated data dir).
 
+### Specs and sheets (0.2 builder S)
+
+- **Spec card (F2):** every render writes `spec.json` (envelope, volume, mass when a material
+  is known, bodies, components, user parameters, commit, blob, licence) and a 2048×1152
+  title-block still. Assemblies are measured as placed (each placement of a part counts).
+  Designs in the API carry `spec`, so the drawing sheet's title block shows mass and material.
+- **BOM card (F8):** `assembly.bom` merged with an optional `bom.yaml` of bought parts, as
+  `bom.csv` (filed in Kist), `bom.json` and a parts sheet; a **Parts** section in the sheet.
+- **Engineering view sheet (F11):** front, top and right orthographic views in third-angle
+  projection at an ISO scale on A3, an iso view and a title block, as PNG and PDF. Ready
+  for SolidCraft's `drawing.*` (0.45+) through a feature-detected sheet backend.
+- **Dimension callout (F21):** the front view with overall width and height as ISO 129
+  dimension lines from the measured box at the camera's exact orthographic scale, depth noted.
+- **Contact sheet (F27):** a button on each source row (and `POST /api/sources/{id}/contact-sheet`,
+  MCP `make_contact_sheet`) puts every rendered design's hero still on one page with mono
+  labels: 3840×2160 PNG pages and a PDF; filed in Kist once per version when Kist is on.
+- **Assembly steps (F30, off by default):** one picture per step, new parts darker and earlier
+  ones lighter, plus `assembly.md` in GitBuilding BuildUp Markdown; steps from `.sklent.yaml`
+  or the order parts were placed.
+- MCP: `get_design_spec`, `get_bom`, `view_sheet`, `make_contact_sheet`. `sklent render`
+  takes `--settings JSON`.
+- The drawing sheet shows PDF, CSV and Markdown files as open/download cards; a new
+  `registerSourceAction` seam adds buttons to source rows.
+
 ## 0.1.1 (2026-11-01)
 
 - New app icon: an S inside a ring, light grey on deep grey (a matched set with Kist's K),

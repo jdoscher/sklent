@@ -69,6 +69,8 @@ A design that is only on disk can be rendered without the app:
 
 ```bash
 docker compose run --rm app sklent render /data/some.sc /data/out --palette white
+# feature settings as JSON, e.g. assembly steps on:
+docker compose run --rm app sklent render /data/some.sc /data/out --settings '{"specs_assembly": true}'
 ```
 
 ### Configuration (`.env`)
@@ -89,6 +91,58 @@ docker compose run --rm app sklent render /data/some.sc /data/out --palette whit
 Render settings (palette, length, frame rate, camera pitch, still and GIF sizes, styles)
 are in the UI's **Settings** and the MCP `set_render_settings` tool.
 
+## Specs and sheets
+
+Besides the turntables, each render makes drafting sheets from the same open design (render
+steps; every one can be switched off in **Settings → Specs and sheets**). Parts stay grey or
+white, and dimension lines only ever appear on orthographic views, where they are true.
+
+| file (variant) | default | what it is |
+|---|---|---|
+| `spec.json` (sidecar) | always | envelope, volume, mass (only when a material is known), bodies, components, user parameters, commit, blob, licence |
+| `<design>-spec-card.png` (`spec-card`) | on | 2048×1152 card: the part, the spec list and a title block |
+| `<design>-bom.csv` (`bom-csv`), `bom.json`, `<design>-bom-sheet.png` (`bom-sheet`) | on, for assemblies or with a `bom.yaml` | SolidCraft's `assembly.bom` merged with the repo's `bom.yaml` (bought parts: name, qty, supplier, url, price) |
+| `<design>-views-sheet.png` / `.pdf` (`views-sheet`, `views-sheet-pdf`) | on | A3 sheet: front, top and right views in third-angle projection at one ISO scale, plus an iso view and a title block. Visible edges only (no hidden lines until SolidCraft's drawings) |
+| `<design>-dimensions-2048.png` (`dimensions`) | on | the front view with overall width and height as ISO 129 dimension lines, depth noted |
+| `<design>-assembly-NN.png` (`assembly-N`), `<design>-assembly.md` (`assembly-md`) | off | assemblies: one picture per step (new parts in the darker grey, earlier ones lighter) and a GitBuilding BuildUp page |
+
+All of them land in Kist with the rest of the set (`format:<variant>`), and show in the
+drawing sheet's schedule; the sheet also gets **Spec** and **Parts** sections and a
+Licence cell. A **contact sheet** of every rendered design in a source (3840×2160 PNG
+pages and a PDF, hero stills with mono labels) is made on demand from the grid button on
+the source's row, or `POST /api/sources/{id}/contact-sheet`; with Kist on it is filed once
+per version of the sheet, tagged `format:contact-sheet`.
+
+| setting | default | |
+|---|---|---|
+| `specs_card` | `true` | spec card still (`spec.json` is written regardless) |
+| `specs_material` | `""` | material assigned for mass when `.sklent.yaml` names none (`material.list`: PLA, ABS Plastic, Aluminum, …) |
+| `specs_bom` | `true` | parts list (CSV, JSON, sheet) |
+| `specs_bom_file` | `bom.yaml` | the BOM file next to the design in the repo; `.sklent.yaml` `bom:` overrides it or holds the list inline |
+| `specs_views` | `true` | views sheet PNG + PDF |
+| `specs_dimensions` | `true` | dimension still |
+| `specs_assembly` | `false` | assembly step images |
+| `specs_assembly_max_steps` | `20` | skip (with a note in the report) above this many steps |
+
+`bom.yaml`:
+
+```yaml
+currency: EUR               # optional
+parts:                      # or a bare list
+  - name: M3x8 socket head cap screw
+    qty: 8
+    supplier: Example Fasteners
+    url: https://example.com/m3x8
+    price: 0.12             # each
+  - match: Arm              # enrich a model part (by name or part number) instead of adding one
+    notes: print in PETG
+```
+
+From `.sklent.yaml` (when the repo has one) the sheets also read `title`, `licence`,
+`material`, `bom` and `assembly.steps` (`[{name, components: [...]}]`). Mass appears only
+for a material set there, in the setting, or in the design itself; SolidCraft's placeholder
+"Default" material doesn't count.
+
 ## MCP
 
 A streamable-HTTP MCP endpoint at `/mcp`, with the same bearer token:
@@ -107,6 +161,9 @@ claude mcp add --transport http sklent http://<host>:8090/mcp \
 | `view_render` | See a still (image content) |
 | `add_source`, `list_sources`, `scan_source`, `list_designs`, `render_design` | Finer control |
 | `get_render_settings`, `set_render_settings` | Palette, length, sizes |
+| `get_design_spec`, `get_bom` | A design's `spec.json` and parts list |
+| `view_sheet` | See a spec card, parts sheet, views sheet, dimension still or assembly step |
+| `make_contact_sheet` | Every rendered design of a source on one sheet (PNG pages + PDF) |
 
 With Kist's own MCP connected as well, an agent can go on to browse, view and tag the
 filed sets there.
@@ -115,12 +172,15 @@ filed sets there.
 
 `/api/sources`, `/api/designs`, `/api/designs/{id}/render`, `/api/designs/{id}/files/{name}`,
 `/api/render-url`, `/api/jobs`, `POST /api/jobs/{id}/cancel`, `/api/settings`, `/api/status`;
-see `sklent/api.py`.
+see `sklent/api.py`. Specs and sheets add `/api/designs/{id}/spec`, `/api/designs/{id}/bom`,
+`/api/designs/{id}/assembly`, `POST /api/sources/{id}/contact-sheet` and
+`/api/sources/{id}/contact-sheet.png?page=N` / `.pdf`.
 
 Each design carries `blob` (its file's git blob SHA, the sheet's revision) and `report`:
 `{bodies, hidden_bodies, bounds_mm, palette, frame_ms, processes, timings_s}` from its newest
 render set's `report.json` (`bounds_mm` is `[[x, y, z] min, [x, y, z] max]`; `palette` is the
-one that set was rendered with), or `null` before the first render.
+one that set was rendered with), or `null` before the first render. With specs on it also
+carries `spec`, the newest set's `spec.json`.
 
 ## Limits
 

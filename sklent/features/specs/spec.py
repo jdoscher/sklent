@@ -196,7 +196,8 @@ def spec_rows(spec: dict) -> list[tuple[str, str]]:
         extra.append(f"{spec['open_bodies']} open")
     rows.append(("Bodies", f"{b:,}" + (f" ({', '.join(extra)})" if extra else "")))
     if spec.get("components"):
-        rows.append(("Components", f"{spec['components']:,} parts · {spec.get('occurrences') or 0:,} placed"))
+        n, placed = spec["components"], spec.get("occurrences") or 0
+        rows.append(("Components", f"{n:,} part{'s' if n != 1 else ''} · {placed:,} placed"))
     return rows
 
 

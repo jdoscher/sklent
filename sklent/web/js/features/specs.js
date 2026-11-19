@@ -9,7 +9,7 @@
 
 import { api } from '../api.js';
 import { registerDetailSection, registerTitleBlockField } from '../detail.js';
-import { VARIANT_LABEL, fmtMass } from '../format.js';
+import { VARIANT_LABEL, fmtMass, plural } from '../format.js';
 import { registerSettingsGroup } from '../settings.js';
 import { registerSourceAction } from '../sidebar.js';
 
@@ -44,7 +44,7 @@ function specRows(s) {
   rows.push(['Volume', vol ? `${vol} cm³` : '—']);
   const mass = fmtMass(s.mass_g);
   rows.push(['Mass', mass ? `${mass} · ${s.material}` : 'no material set']);
-  if (s.components) rows.push(['Components', `${s.components.toLocaleString('en-US')} parts · ${(s.occurrences || 0).toLocaleString('en-US')} placed`]);
+  if (s.components) rows.push(['Components', `${plural(s.components, 'part')} · ${(s.occurrences || 0).toLocaleString('en-US')} placed`]);
   if (s.open_bodies) rows.push(['Open bodies', String(s.open_bodies)]);
   if (s.solidcraft) rows.push(['Measured by', `SolidCraft ${s.solidcraft}`]);
   return rows;

@@ -65,6 +65,8 @@ def default_steps(st: dict) -> list[dict[str, Any]]:
         if p["component"] not in order:
             order.append(p["component"])
     for cid in order:
+        if not st["defs"][cid]["bodies"]:
+            continue  # nothing to see (an empty or construction-only component)
         steps.append({"name": f"Add {st['defs'][cid]['name']}", "root_bodies": [], "components": [cid]})
     return steps
 

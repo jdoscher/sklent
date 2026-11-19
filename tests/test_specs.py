@@ -332,7 +332,9 @@ ARM_COMPS = [
                   {"id": 8, "component": 7, "name": "Arm (copy):1"}]},
     {"id": 2, "name": "Arm", "parent": 0, "bodies": ["ArmBody"], "children": []},
     {"id": 7, "name": "Arm (copy)", "parent": 0, "bodies": ["Body1"], "children": []},
+    {"id": 9, "name": "Empty", "parent": 0, "bodies": [], "children": []},
 ]
+ARM_COMPS[0]["children"].append({"id": 10, "component": 9, "name": "Empty:1"})
 
 
 def test_assembly_plan_and_buildup(tmp_path):
