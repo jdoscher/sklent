@@ -40,7 +40,7 @@ async function drawTokens(el, ctx, fresh = null) {
       <span class="sk-val"><input type="text" data-tok-name placeholder="Name" aria-label="Token name" maxlength="80" />
       <button type="button" data-tok-make>Create</button></span></div>
     ${list.length ? list.map((t) => `<div class="sk-row sk-inputs-token${t.revoked_at ? ' revoked' : ''}">
-      <span class="lab">${esc(t.name)}<span class="h">${esc(t.hint)} · made ${esc(when(t.created_at))} · used ${esc(when(t.last_used_at))}${t.revoked_at ? ` · revoked ${esc(when(t.revoked_at))}` : ''}</span></span>
+      <span class="lab">${esc(t.name)}<span class="h">${t.scope === 'helper' ? 'render helper · ' : ''}${esc(t.hint)} · made ${esc(when(t.created_at))} · used ${esc(when(t.last_used_at))}${t.revoked_at ? ` · revoked ${esc(when(t.revoked_at))}` : ''}</span></span>
       <span class="sk-val">${t.revoked_at ? '<span class="sk-inputs-chip">revoked</span>' : `<button type="button" data-tok-revoke="${esc(t.id)}">Revoke</button>`}</span>
     </div>`).join('') : '<div class="sk-row"><span class="lab sk-inputs-dim">No viewer tokens yet.</span></div>'}`;
   const name = el.querySelector('[data-tok-name]');

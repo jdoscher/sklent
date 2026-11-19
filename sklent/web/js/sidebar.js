@@ -108,7 +108,7 @@ function renderJobs(el) {
     return `<div class="job" data-job="${j.id}">
       <div class="line"><span class="what" title="${esc(what)}">${esc(what)}</span><span class="state ${esc(j.status)}">${jobState(j)}</span>
         ${live ? `<button type="button" class="icon-btn s24 cancel" data-cancel="${j.id}" aria-label="Cancel ${esc(what)}" title="Cancel">${icon('x', 14)}</button>` : ''}</div>
-      ${msg ? `<div class="msg" title="${esc(msg)}">${esc(msg)}</div>` : ''}
+      ${msg || j.helper ? `<div class="msg" title="${esc(msg)}">${j.helper ? `<span class="sk-helpers-on">on ${esc(j.helper)}</span>${msg ? ' · ' : ''}` : ''}${esc(msg)}</div>` : ''}
       ${j.status === 'running' ? `<div class="rule"><i style="width:${Math.round(j.progress * 100)}%"></i></div>` : ''}
     </div>`;
   }).join('') : '<div class="empty">No jobs yet.</div>';

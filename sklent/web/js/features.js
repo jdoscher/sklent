@@ -10,3 +10,4 @@ import './features/inputs-classes.js';
 import './features/views.js';
 import './features/specs.js';
 import './features/outputs-ui.js';
+import './features/helpers.js';

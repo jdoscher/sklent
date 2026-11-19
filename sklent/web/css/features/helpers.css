@@ -1,0 +1,33 @@
+/* features/helpers.css: render control and render helpers (0.2.1). Tokens only. */
+
+/* the sidebar notice above the jobs: "Quiet hours: helpers only" */
+.sk-helpers-notice {
+  display: flex; align-items: center; gap: 8px; min-height: 28px; padding: 4px 8px;
+  color: var(--text); border: var(--sk-line) solid var(--sk-rule); border-radius: var(--ctl-radius);
+  margin: 0 0 4px;
+}
+.sk-helpers-notice span:first-of-type { flex: 1; min-width: 0; }
+.sk-helpers-n { color: var(--text-dim); font-size: var(--sk-fs-data); white-space: nowrap; }
+
+/* the job log: which helper runs a job */
+.sk-helpers-on { color: var(--text); }
+
+/* Settings → Rendering and Helpers */
+.sk-helpers-now, .sk-helpers-note { color: var(--text-dim); line-height: 1.5; padding: 4px 20px 8px; max-width: 64ch; margin: 0; }
+.sk-helpers-dim { color: var(--text-dim); }
+.sk-helpers-row.idle .lab { color: var(--text-dim); }
+.sk-helpers-row .h { display: block; }
+.sk-helpers-trouble { color: var(--danger); }
+.sk-helpers-chip {
+  font-family: var(--sk-font-data); font-size: var(--sk-fs-data); white-space: nowrap;
+  padding: 1px 6px; border-radius: var(--ctl-radius);
+  background: var(--chip-bg); color: var(--text-dim);
+}
+.sk-helpers-chip.on { color: var(--chip-text); }
+.sk-helpers-fresh {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 8px; align-items: end;
+  margin: 4px 20px 8px; padding: 8px 10px;
+  border: var(--sk-line) solid var(--sk-rule-float); border-radius: var(--ctl-radius);
+}
+.sk-helpers-fresh .lab { grid-column: 1 / -1; }
+.sk-helpers-fresh textarea { width: 100%; resize: vertical; font-size: var(--sk-fs-data); line-height: 1.45; }
