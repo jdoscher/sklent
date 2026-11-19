@@ -2,12 +2,14 @@
 // their units, and the live cost of a change (`240 frames a view · 960 a set`).
 //
 // Seam: registerSettingsGroup({ id, title, order, fields: [{ name, label, type, unit,
-// min, max, step, options, hint }] }). type is number (default) | select | checkbox |
+// min, max, step, options, hint }], render? }). render(container, ctx), when given, draws
+// extra rows the group manages itself (they are not sent with Save). type is number (default) | select | checkbox |
 // text; options are values or { value, label }. Fields load from GET /api/settings
 // by name and are sent with the built-in ones in the same PUT /api/settings, so a
 // group's keys must be ones the server accepts (add them server-side first).
 
 import { api } from './api.js';
+import { ctx } from './ctx.js';
 import { $, $$, esc } from './dom.js';
 import { state } from './store.js';
 import { toast } from './toast.js';
@@ -113,7 +115,13 @@ function fieldValue(form, f) {
 export async function openSettings() {
   const s = await api('/settings');
   $('#settings-body').innerHTML = groups.map((g) => `<div class="sk-grp">${esc(g.title)}</div>${
-    g.custom === 'palette' ? paletteHtml(s) : g.custom === 'styles' ? stylesHtml(s) : g.fields.map((f) => rowHtml(f, s)).join('')}`).join('');
+    g.custom === 'palette' ? paletteHtml(s) : g.custom === 'styles' ? stylesHtml(s) : g.fields.map((f) => rowHtml(f, s)).join('')}${
+    g.render ? `<div class="sk-grp-body" data-group="${esc(g.id)}"></div>` : ''}`).join('');
+  // a group may also draw its own rows (render(container, ctx)), e.g. a list it manages itself
+  for (const g of groups) {
+    if (!g.render) continue;
+    try { g.render($(`#settings-body [data-group="${CSS.escape(g.id)}"]`), ctx); } catch (err) { console.error(`settings group ${g.id}`, err); }
+  }
   $('#settings-error').textContent = '';
   $('#settings').hidden = false;
   updateTotals();

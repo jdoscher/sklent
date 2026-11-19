@@ -23,6 +23,13 @@ _live: "weakref.WeakSet[SolidCraft]" = weakref.WeakSet()
 _live_lock = threading.Lock()
 
 
+# Seams (inputs feature, 0.2): ALLOW_PATH_HOOKS are fn(design) -> [folders] the process may
+# also read (a linked part in ../parts); OPEN_HOOKS are fn(sc, design) run once the process
+# has opened the design (re-open a Y-up STEP, update linked designs).
+ALLOW_PATH_HOOKS: list = []
+OPEN_HOOKS: list = []
+
+
 def kill_all() -> int:
     """Kill every open solidcraft-cli process (one worker renders at a time, so these
     all belong to the running job). Returns how many were killed."""
@@ -37,9 +44,10 @@ class SolidCraft:
     def __init__(self, design: Path, out_dir: Path, timeout: float = 600):
         self.timeout = timeout
         self._stderr: list[str] = []
+        extra = [a for hook in ALLOW_PATH_HOOKS for p in hook(design) for a in ("--allow-path", str(p))]
         self.proc = subprocess.Popen(
             [get_settings().solidcraft_cli, "mcp", "--headless", "--in", str(design),
-             "--allow-path", str(out_dir), "--allow-path", str(design.parent)],
+             "--allow-path", str(out_dir), "--allow-path", str(design.parent), *extra],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, bufsize=1,
         )
@@ -50,6 +58,8 @@ class SolidCraft:
         self._rpc("initialize", {"protocolVersion": "2025-06-18", "capabilities": {},
                                  "clientInfo": {"name": "sklent", "version": "0"}})
         self._send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+        for hook in OPEN_HOOKS:
+            hook(self, design)
 
     def _drain_stderr(self) -> None:
         assert self.proc.stderr

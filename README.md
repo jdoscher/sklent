@@ -1,8 +1,9 @@
 # sklent
 
-Point it at a GitHub or Forgejo account, repo, folder or file, and it renders every
-[SolidCraft](https://github.com/tangency-labs/solidcraft) design it finds into a media set,
-then files the set into a [Kist](https://github.com/jdoscher/kist) folder.
+Point it at a GitHub or Forgejo account, repo, folder, file, branch, tag or pull request, and
+it renders every [SolidCraft](https://github.com/tangency-labs/solidcraft) design (and every
+STEP, STL and 3MF file) it finds into a media set, then files the set into a
+[Kist](https://github.com/jdoscher/kist) folder.
 
 For each design, in a **shaded** and a **wireframe** (x-ray) style:
 
@@ -62,8 +63,9 @@ rebuild, so designs over `revisions_timelapse_max_bodies` (100) bodies or
 ## How it works
 
 - **Discovery** uses the forges' git-tree APIs; nothing is cloned. `.sc` and `.solidcraft`
-  files are found with their blob SHAs, so a re-scan renders only what changed. Folders
-  named `tests`, `test`, `fixtures` and `corpus` are skipped by default (per-source `exclude`).
+  files (plus `.step`/`.stp`, `.stl` and `.3mf`, see [Inputs](#inputs-and-access)) are found
+  with their blob SHAs, so a re-scan renders only what changed. Folders named `tests`,
+  `test`, `fixtures` and `corpus` are skipped by default (per-source `exclude`).
 - **Rendering** drives `solidcraft-cli mcp --headless` over stdio: the design loads once,
   then each frame is a `screenshot` with an orbit camera. The camera distance is fitted so
   the bounding box stays in frame at every angle, separately for landscape and portrait.
@@ -91,7 +93,10 @@ Open `http://<host>:8090`, paste the token, then paste a URL and press **Render*
 
 - `https://github.com/<owner>`: every non-fork, non-archived repo
 - `https://github.com/<owner>/<repo>` or `…/tree/<branch>/<folder>`
-- `https://github.com/<owner>/<repo>/blob/<branch>/<path>.sc`: one design
+- `https://github.com/<owner>/<repo>/blob/<branch>/<path>.sc`: one design (or `.step`, `.stl`, `.3mf`)
+- `…/pull/<n>` (GitHub) or `…/pulls/<n>` (Forgejo): the designs a pull request changes
+- `…/tree/<tag>`, `…/releases/tag/<tag>`, `…/commit/<sha>`: a tag or commit
+- `https://github.com/<org>?prefix=<repo prefix>`: a class set (see below)
 - the same shapes on Forgejo (`…/src/branch/<branch>/<path>`), and SSH clone URLs
 
 Hovering a tile plays its turntable; clicking it opens the design as a drawing sheet: the
@@ -104,8 +109,13 @@ A design that is only on disk can be rendered without the app:
 
 ```bash
 docker compose run --rm app sklent render /data/some.sc /data/out --palette white
+docker compose run --rm app sklent render /data/robot.step /data/out \
+  --settings '{"styles": ["shaded"]}'          # any render or feature setting, as JSON
 ```
 
+`sklent render` applies the `.sklent.yaml` files in the folders above the design (up to the
+git root; `--config PATH` names one, `--config none` skips them), then `--palette` /
+`--seconds`, then `--settings`.
 `--settings '{"revisions_timelapse": true}'` passes feature settings to that render.
 
 ### Configuration (`.env`)
@@ -134,6 +144,100 @@ the same Settings sheet and `GET/PUT /api/settings`:
 | `revisions_timelapse` | off | Build-history timelapse MP4 and GIF |
 | `revisions_timelapse_max_features` | `200` | Skip the timelapse above this many features |
 | `revisions_timelapse_max_bodies` | `100` | Skip the timelapse above this many bodies |
+| `inputs_step` | `true` | Scans find `.step`/`.stp` files |
+| `inputs_mesh` | `true` | Scans find `.stl`/`.3mf` files (exports next to a `.sc` design are skipped) |
+| `inputs_review_post` | `false` | Allow **Post** of a review comment to the pull request (only ever on a click) |
+| `inputs_public_url` | `""` | This server's URL for links in review comments (empty: the address the page uses) |
+
+## Inputs and access
+
+### STEP, STL and 3MF
+
+STEP files open as B-rep bodies (an assembly's parts become components); STL and 3MF open as
+mesh bodies (no volume; the x-ray style shows the mesh's edges). Everything else (framing,
+the grey repaint, the colour guard, every output) is the same. A mesh with the same name as a
+SolidCraft design in its folder (`case.sc` and `case.stl`) is taken as its export and skipped;
+pointing a source at the file itself renders it anyway. Git LFS files are fetched through the
+forge's media endpoint. Tiles carry a `STEP`, `STL` or `3MF` chip; `report.json` gets
+`inputs.format`. OpenSCAD (`.scad`) is planned for later.
+
+### Linked designs (multi-file assemblies)
+
+A SolidCraft assembly that links parts saved in other files (`component.insert_design`)
+renders whole: before a render, Sklent fetches the design and every file it links (and what
+those link; up to 64 files) at the same commit into the repo's own layout, and once
+SolidCraft has opened it, updates the links that changed since the design was saved
+(`component.update_links`). A linked file that can't be fetched keeps the copy saved in the
+assembly, with a note. Editing a linked part re-renders every assembly that uses it: an
+assembly's revision is a hash of its own blob and its linked files' blobs. The tile shows
+`ASM n`; the sheet's **Inputs** section lists the files.
+
+### `.sklent.yaml`
+
+A repo can carry `.sklent.yaml` (or `.sklent.yml`) at its root or in any folder; every one
+above a design applies, the nearest last. It is read with `yaml.safe_load` at the scanned
+commit; a wrong key is dropped and reported on the scan job and in the sheet, never fatal.
+
+```yaml
+name: Sensor mount family
+licence: CERN-OHL-S-2.0
+include: ["parts/**", "assemblies/*.sc"]   # globs from this file's folder; /x anchors here
+exclude: ["parts/old/**"]
+formats: [sc, step]                       # sc, step, stl, 3mf (or mesh)
+presets: [printables, youtube-thumbnail]
+bom: bom.yaml
+material: PETG
+highlight: [Lid]
+up: y                                     # STEP files exported with Y up
+settings: {palette: white, seconds: 6, styles: [shaded], views_exploded: true}
+steps:
+  - {title: Base, parts: [Base]}
+designs:
+  parts/case.sc: {title: Pi case, highlight: [Lid]}
+  "old/*.stl": {exclude: true}
+```
+
+`settings` may override only `palette` (still one of the greys), `seconds`, `styles` and
+boolean feature settings. Other features read a design's merged config with
+`sklent.repo_config.get(design_id)`; the API shows it as `design.config`.
+
+### Branches, tags and pull requests
+
+A source can name a ref; its designs are kept apart from the default branch's (a design is
+keyed by source + ref), and tiles show the ref (`PR #12`, `dev`, `v1.2`). A pull request
+source renders only the designs the PR adds or changes, plus assemblies that link a changed
+file, at the PR's head. The sheet's **Review comment** section builds Markdown for the PR
+thread: each design's still, before (from the base branch, when Sklent has it) and after,
+with its envelope and body count and a link to the turntable GIF. The image links point at
+this server's file URLs (readers need its token) or, with Kist on, at a Kist share link.
+
+**Nothing is posted** unless `inputs_review_post` is on and someone presses **Post** (or calls
+`post_review_comment`); then it is one comment through the forge's API with the server's
+token, which needs: GitHub fine-grained `Pull requests: write` (classic: `public_repo` or
+`repo`), Forgejo `write:issue`. Without that, scanning needs only read access.
+
+### Class sets and due dates
+
+A class set is an account or organisation plus a repo-name prefix, the way GitHub Classroom
+names an assignment's repos (`bracket-hw-<username>`). Add one from the sidebar's **Class
+sets** (or `POST /api/classes`, MCP `add_class_source`) with an optional deadline and roster:
+
+- **Deadline** (ISO 8601): each repo renders its newest commit at or before it (committer
+  date). A later push shows `after due` on the tile and doesn't re-render.
+- **Roster**: usernames, `username, Display name`, or repo-name patterns with `*`. The
+  sidebar shows `n/m submitted` and, opened, every student as handed in, `no design`,
+  `nothing by due` or `no repo`.
+
+Any source can carry a deadline (`PUT /api/sources/{id}/class`).
+
+### Viewer tokens
+
+Settings → **Tokens** makes a named, read-only viewer token (shown once; stored as a SHA-256
+hash), lists them and revokes them; `sklent token create|list|revoke` does the same on the
+host. A viewer can browse, view and download, through the UI, every `GET` under `/api`, and
+the MCP tools that only read. Rendering, adding or removing sources, changing settings,
+managing tokens and every MCP tool that changes something answer 403, and the UI hides
+those controls.
 
 ## MCP
 
@@ -156,6 +260,12 @@ claude mcp add --transport http sklent http://<host>:8090/mcp \
 | `list_sets` | Every kept version of a design: commit, message, tags, files |
 | `compare_sets` | Pixel compare of two versions (changed share, bounding box, mask and composite URLs) plus the commits in between |
 | `view_compare` | See a compare as one picture: older, newer, changes (image content) |
+| `add_class_source`, `list_class_submissions` | Class sets: add one; who handed in what by the deadline |
+| `review_comment`, `post_review_comment` | Review Markdown for a source's renders; posting only when `inputs_review_post` is on |
+| `get_design_inputs` | A design's format, linked files, `.sklent.yaml` config and ref |
+
+A viewer token may call only the tools that read (`list_*`, `get_*`, `job_status`,
+`wait_for_job`, `view_render`, `review_comment`, …).
 
 With Kist's own MCP connected as well, an agent can go on to browse, view and tag the
 filed sets there.
@@ -164,7 +274,10 @@ filed sets there.
 
 `/api/sources`, `/api/designs`, `/api/designs/{id}/render`, `/api/designs/{id}/files/{name}`,
 `/api/render-url`, `/api/jobs`, `POST /api/jobs/{id}/cancel`, `/api/settings`, `/api/status`;
-see `sklent/api.py`.
+see `sklent/api.py`. Inputs and access add `GET /api/whoami`, `GET /api/designs/{id}/inputs`,
+`GET|POST /api/sources/{id}/review-comment`, `GET|POST /api/classes`,
+`GET|PUT /api/sources/{id}/class`, and `GET|POST /api/tokens`, `DELETE /api/tokens/{id}`
+(see `sklent/features/inputs/`).
 
 Each design carries `blob` (its file's git blob SHA, the sheet's revision) and `report`:
 `{bodies, hidden_bodies, bounds_mm, palette, frame_ms, processes, timings_s}` from its newest
@@ -177,11 +290,15 @@ Revisions: `GET /api/designs/{id}/sets` (newest first), `/sets/{set}`,
 defaults: the current version against the one before), `/compare/diff.png` (alpha mask of the
 changed pixels), `/compare/frame.png?set=&variant=&frame=`, `/compare/composite.png`, and
 `/changelog?base=&head=`.
+one that set was rendered with), or `null` before the first render. They also carry `format`
+(`sc`, `step`, `stl`, `3mf`), `inputs` (`{links, notes}` for an assembly, else `null`),
+`config` (the merged `.sklent.yaml`, or `null`), `ref_info` (`{kind: pull|ref, label, …}` off
+the default branch) and `due` (`{deadline, committed_at, after_due}` for a deadline source).
 
 ## Limits
 
-- Designs are fetched as single files. A design that links parts from other files in its
-  repo isn't supported yet.
+- OpenSCAD files aren't rendered yet.
+- Mesh inputs (STL, 3MF) have no volume, so mass and section caps don't apply to them.
 - SolidCraft's headless renderer ignores `view.visual_style`, so the wireframe style is an
   x-ray: see-through bodies with every edge (see `docs/spike.md`).
 

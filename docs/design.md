@@ -139,7 +139,8 @@ A group in the render-settings spec sheet. Built-ins: palette (0), turntable (10
 `select` (`options`: values or `{ value, label }`, the value's type is kept), `checkbox` or
 `text`. Values load from `GET /api/settings` by `name` and are sent in the same
 `PUT /api/settings` as the built-in fields, so the server must accept the new keys (add them
-to its settings first; it rejects unknown ones).
+to its settings first; it rejects unknown ones). A group may also pass `render(container, ctx)` to draw rows it
+manages itself under its heading (Settings → Tokens does); those aren't sent with Save.
 
 ## Vocabulary
 

@@ -91,7 +91,7 @@ def fake(monkeypatch):
     FakeForge.blobs = {}
     monkeypatch.setattr(jobs, "Forge", FakeForge)
     monkeypatch.setattr(revisions, "Forge", FakeForge)
-    monkeypatch.setattr(jobs, "looks_like_design", lambda data: True)
+    monkeypatch.setattr(jobs, "looks_like_design", lambda data, path=None: True)
     state = {"square": None, "n": 0, "fail": None}
 
     def fake_render_set(local, out_dir, stem, opts, progress, **_):

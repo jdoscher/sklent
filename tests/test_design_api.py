@@ -47,7 +47,7 @@ class _Forge:
 def test_render_message_says_one_body(monkeypatch, settings):
     did = _design(_source()["id"])
     monkeypatch.setattr(jobs, "Forge", _Forge)
-    monkeypatch.setattr(jobs, "looks_like_design", lambda data: True)
+    monkeypatch.setattr(jobs, "looks_like_design", lambda data, path=None: True)
 
     def fake_render_set(local, out_dir, stem, opts, progress, **_):
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -130,7 +130,7 @@ def test_cancel_a_running_render_kills_solidcraft_and_restores_the_design(monkey
     with db.connect() as conn:
         db.update(conn, "designs", did, error="earlier failure")
     monkeypatch.setattr(jobs, "Forge", _Forge)
-    monkeypatch.setattr(jobs, "looks_like_design", lambda data: True)
+    monkeypatch.setattr(jobs, "looks_like_design", lambda data, path=None: True)
     killed = threading.Event()
     monkeypatch.setattr(jobs, "kill_all", lambda: killed.set() or 1)
     started = threading.Event()

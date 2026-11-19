@@ -4,3 +4,6 @@
 // registerSidebarSection from sidebar.js, registerTileBadge from tiles.js,
 // registerSettingsGroup from settings.js, api from api.js). See docs/design.md.
 import './features/revisions.js';
+import './features/inputs-access.js';
+import './features/inputs-sources.js';
+import './features/inputs-classes.js';
