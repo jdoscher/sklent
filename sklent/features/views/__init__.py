@@ -112,11 +112,13 @@ def clean_request(outputs: list[str] | None = None, preview_only: bool = False,
     """Validate a per-render choice: core `outputs` (empty or preview_only: the quick
     check only) and feature-setting overrides (any registered setting key)."""
     req: dict[str, Any] = {}
+    over: dict[str, Any] = {}
     if preview_only:
         req["outputs"] = []
+        # a quick check is the still alone: the views that are on by default wait too
+        over.update({"views_configs": False, "views_motion": False})
     elif outputs is not None:
         req["outputs"] = RenderOptions(outputs=list(outputs)).validate().outputs
-    over = {}
     for k, v in (settings or {}).items():
         if k not in jobs._EXTRA:
             raise ValueError(f"{k} is not a feature setting")

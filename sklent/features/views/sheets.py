@@ -11,7 +11,7 @@ from __future__ import annotations
 import math
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 FONTS = Path(__file__).resolve().parents[2] / "web" / "fonts"
 PAPER = (244, 245, 247)
@@ -22,6 +22,18 @@ HAIR = (201, 204, 209)
 BED = (212, 216, 221)
 GRID = (201, 205, 210)
 GRID_10 = (186, 191, 197)
+EDGE = (96, 102, 110)  # the part's silhouette on the plate: render jobs draw no edges
+
+
+def outlined(im: Image.Image) -> Image.Image:
+    """An RGBA part with a 1 px silhouette line just outside it (its true outline in an
+    orthographic plan view), so a white part reads on the bed."""
+    out = Image.new("RGBA", (im.width + 2, im.height + 2), (0, 0, 0, 0))
+    out.paste(im, (1, 1))
+    solid = out.getchannel("A").point(lambda v: 255 if v > 24 else 0)
+    ring = ImageChops.subtract(solid.filter(ImageFilter.MaxFilter(3)), solid)
+    out.paste(Image.new("RGBA", out.size, (*EDGE, 255)), (0, 0), ring)
+    return out
 
 
 def font(size: int, face: str = "jetbrains-mono") -> ImageFont.ImageFont | ImageFont.FreeTypeFont:
@@ -90,7 +102,7 @@ def plate(cells: list[tuple[Path, str, str]], out: Path, *, px_per_mm: float, wi
         im = Image.open(path).convert("RGBA")
         bbox = im.getchannel("A").getbbox()
         if bbox:
-            im = im.crop(bbox)
+            im = outlined(im.crop(bbox))
         ims.append((im, name, sub))
     width = max(width, max((im.width for im, _, _ in ims), default=0) + 2 * pad)
     # shelf packing, tallest first

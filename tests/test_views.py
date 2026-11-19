@@ -464,6 +464,11 @@ def test_lineup_and_plate_sheets(tmp_path):
         cells.append((p, f"part {i}", "10 × 20 mm"))
     w, h = sheets.plate(cells, tmp_path / "plate.png", px_per_mm=5, title="t")
     assert (w, h) == Image.open(tmp_path / "plate.png").size
+    part = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
+    part.paste((240, 240, 240, 255), (3, 3, 7, 7))
+    ring = np.asarray(sheets.outlined(part))
+    assert ring.shape[:2] == (12, 12) and tuple(ring[3, 5][:3]) == sheets.EDGE
+    assert tuple(ring[5, 5][:3]) == (240, 240, 240)
     w, h = sheets.lineup(cells, tmp_path / "lineup.png", title="t")
     im = np.asarray(Image.open(tmp_path / "lineup.png").convert("RGB"), dtype=np.float32) / 255
     assert (im.max(axis=2) - im.min(axis=2)).max() < 0.05  # neutral greys only
@@ -586,7 +591,7 @@ def test_views_api(settings):
     assert r.json()["job"]["force"] == 1
     assert c.post(f"/api/designs/{did}/views/render", json={"outputs": ["8k"]}, headers=H).status_code == 422
     assert c.post(f"/api/designs/{did}/views/render", json={"preview_only": True}, headers=H).json()["request"] == \
-        {"outputs": []}
+        {"outputs": [], "settings": {"views_configs": False, "views_motion": False}}
     assert c.get("/api/views/beds", headers=H).json()["beds"][0]["name"] == "Bambu Lab A1 mini"
     assert c.get("/api/designs/nope/views", headers=H).status_code == 404
     s = c.put("/api/settings", json={"views_plate": True, "outputs": ["hires"]}, headers=H).json()
