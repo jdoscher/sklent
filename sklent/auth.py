@@ -149,7 +149,7 @@ class BearerTokenMiddleware:
                     await _denied("this is a read-only viewer token")(scope, receive, send)
                     return
                 if path.startswith(VIEWER_DENIED_PREFIXES):
-                    await _denied("viewer tokens can't manage tokens")(scope, receive, send)
+                    await _denied("viewer tokens can't manage tokens or render helpers")(scope, receive, send)
                     return
             elif scope["method"] == "POST":
                 checked = await self._check_mcp(scope, receive, send)
@@ -177,9 +177,11 @@ class BearerTokenMiddleware:
             if isinstance(m, dict) and m.get("method") == "tools/call":
                 name = str((m.get("params") or {}).get("name") or "")
                 if not viewer_may_call(name):
+                    why = (f"{name} is for the admin token" if name in ADMIN_ONLY_TOOLS
+                           else f"{name} changes things; a viewer token can only read")
                     await JSONResponse({
                         "jsonrpc": "2.0", "id": m.get("id"),
-                        "error": {"code": -32001, "message": f"{name} changes things; a viewer token can only read"},
+                        "error": {"code": -32001, "message": why},
                     }, status_code=403)(scope, receive, send)
                     return None
         sent = False

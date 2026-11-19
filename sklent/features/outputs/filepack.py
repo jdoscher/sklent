@@ -104,7 +104,11 @@ def register() -> None:
 # ---------------------------------------------------------------- the render step
 
 def _design_id(ctx: steps.StepContext) -> str | None:
-    """A served render writes to <renders>/<design id>/<blob12>; the CLI writes anywhere."""
+    """A served render writes to <renders>/<design id>/<blob12>; the CLI writes anywhere.
+    A served render (or a render helper's) also carries the design row in the settings."""
+    given = (ctx.settings.get("design") or {}) if isinstance(ctx.settings.get("design"), dict) else {}
+    if given.get("id"):
+        return given["id"]
     from ...config import get_settings
     if not get_settings().db_path.is_file():
         return None  # a one-off CLI render: no database, and don't create one

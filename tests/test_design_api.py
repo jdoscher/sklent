@@ -95,7 +95,7 @@ def test_designs_carry_blob_and_report_even_when_the_data_dir_moved(settings):
         assert d["files"][0]["bytes"] == 4
         r = d["report"]
         assert set(r) == {"bodies", "hidden_bodies", "bounds_mm", "palette", "frame_ms", "processes",
-                          "timings_s"}
+                          "timings_s", "renderer", "adapter", "host"}
         assert r["bodies"] == 1418 and r["hidden_bodies"] == 2 and r["palette"] == "white"
         assert r["bounds_mm"] == [[-0.0, 0.0, -30.0], [355.0, 355.0, 10.0]]
         assert r["frame_ms"] == 35.6 and r["processes"] == 3 and r["timings_s"]["frames"] == 32.0

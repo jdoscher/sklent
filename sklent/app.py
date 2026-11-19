@@ -27,6 +27,8 @@ async def lifespan(app: FastAPI):
     for d in (settings.data_dir, settings.renders_dir, settings.work_dir):
         d.mkdir(parents=True, exist_ok=True)
     db.init()
+    from . import solidcraft
+    threading.Thread(target=solidcraft.version, daemon=True, name="solidcraft-version").start()  # for helper claims
     stop = threading.Event()
     threads = [threading.Thread(target=jobs.worker_loop, args=(stop,), daemon=True, name="worker"),
                threading.Thread(target=jobs.scheduler_loop, args=(stop,), daemon=True, name="scheduler")]

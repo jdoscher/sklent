@@ -336,8 +336,13 @@ def worker_loop(stop: threading.Event) -> None:
         if time.monotonic() - last > 5:
             housekeeping()
             last = time.monotonic()
-        plan = host_plan()
-        job = _claim(plan)
+        try:
+            plan = host_plan()
+            job = _claim(plan)
+        except Exception as exc:  # noqa: BLE001 - a database hiccup: try again shortly
+            log.warning("worker: %s", exc)
+            stop.wait(5)
+            continue
         if job is None:
             _wake.wait(2)
             _wake.clear()

@@ -1,8 +1,10 @@
 """`sklent serve` runs the app; `sklent render FILE OUT_DIR` renders one local design;
-`sklent token create|list|revoke` manages read-only viewer tokens."""
+`sklent token create|list|revoke` manages viewer and helper tokens; `sklent helper` renders
+for a Sklent server from this machine."""
 
 import argparse
 import json
+import os
 import sys
 from dataclasses import asdict, fields
 from pathlib import Path
@@ -60,7 +62,8 @@ def _render(args) -> int:
         design.with_name(design.name + ".sklent.json").write_text(json.dumps({"up": config["up"]}))
     outputs, report = render_set(design, args.out_dir.resolve(), args.design.stem, opts,
                                  lambda f, m: print(f"{f:4.0%} {m}", file=sys.stderr),
-                                 processes=args.processes, settings={**asdict(opts), **settings})
+                                 processes=args.processes, settings={**asdict(opts), **settings},
+                                 **({"renderer": args.renderer} if args.renderer != "gpu" else {}))
     from .features.inputs.links import report_for
 
     report["inputs"] = report_for(design)
@@ -76,14 +79,18 @@ def _token(args) -> int:
 
     db.init()
     if args.action == "create":
-        t = tokens.create(args.name)
-        print(f"Viewer token \u201c{t['name']}\u201d (shown once; it can browse, view and download, nothing else):",
-              file=sys.stderr)
+        t = tokens.create(args.name, args.scope)
+        if args.scope == "helper":
+            print(f"Helper token \u201c{t['name']}\u201d (shown once; it can only claim and report render jobs):",
+                  file=sys.stderr)
+        else:
+            print(f"Viewer token \u201c{t['name']}\u201d (shown once; it can browse, view and download, nothing else):",
+                  file=sys.stderr)
         print(t["token"])
     elif args.action == "list":
         for t in tokens.list_tokens():
             state = f"revoked {t['revoked_at']}" if t["revoked_at"] else f"last used {t['last_used_at'] or 'never'}"
-            print(f"{t['id']}  {t['hint']}  {t['name']}  ({state})")
+            print(f"{t['id']}  {t['hint']}  {t.get('scope') or 'viewer':6}  {t['name']}  ({state})")
     else:
         try:
             t = tokens.revoke(args.id)
@@ -115,14 +122,35 @@ def main(argv: list[str] | None = None) -> int:
     one.add_argument("--settings", default=None,
                      help="render and feature settings as JSON, e.g. "
                           '\'{"styles": ["shaded"], "views_exploded": true}\'')
+    one.add_argument("--renderer", choices=["gpu", "software"],
+                     default="software" if (os.environ.get("SK_RENDERER") or "").lower() == "software" else "gpu",
+                     help="gpu (default) or software: Mesa lavapipe on the CPU, no GPU (SK_RENDERER)")
     one.add_argument("--config", default="auto",
                      help="a .sklent.yaml to apply; auto (default) reads those in the folders above the design "
                           "(up to the git root), none skips them")
-    tok = sub.add_parser("token", help="read-only viewer tokens (in SK_DATA_DIR's database)")
+    tok = sub.add_parser("token", help="viewer and helper tokens (in SK_DATA_DIR's database)")
     tsub = tok.add_subparsers(dest="action", required=True)
-    tsub.add_parser("create", help="make a viewer token (printed once)").add_argument("name")
+    mk = tsub.add_parser("create", help="make a viewer token, or a helper token with --scope helper (printed once)")
+    mk.add_argument("name")
+    mk.add_argument("--scope", choices=["viewer", "helper"], default="viewer")
     tsub.add_parser("list", help="list viewer tokens")
-    tsub.add_parser("revoke", help="revoke a viewer token by id").add_argument("id")
+    tsub.add_parser("revoke", help="revoke a token by id").add_argument("id")
+    env = os.environ.get
+    hp = sub.add_parser("helper", help="render for a Sklent server from this machine (no database needed)")
+    hp.add_argument("--url", default=env("SK_HELPER_URL"),
+                    help="the server, e.g. http://sklent-host:8090 (SK_HELPER_URL)")
+    hp.add_argument("--token-file", default=env("SK_HELPER_TOKEN_FILE"),
+                    help="file holding a helper token (else SK_HELPER_TOKEN)")
+    hp.add_argument("--name", default=env("SK_HELPER_NAME"),
+                    help="this helper's name in the server's list (SK_HELPER_NAME)")
+    hp.add_argument("--renderer", choices=["gpu", "software"], default=(env("SK_RENDERER") or "gpu").lower()
+                    if (env("SK_RENDERER") or "gpu").lower() in ("gpu", "software") else "gpu",
+                    help="gpu (default) or software (Mesa lavapipe on the CPU) (SK_RENDERER)")
+    hp.add_argument("--processes", type=int, default=None,
+                    help="most SolidCraft processes for one design's frames (default SK_RENDER_PROCESSES)")
+    hp.add_argument("--max-bodies", type=int, default=None,
+                    help="skip designs whose last render had more bodies than this")
+    hp.add_argument("--once", action="store_true", help="render at most one job, then exit")
     args = p.parse_args(argv)
 
     if args.cmd == "serve":
@@ -131,7 +159,21 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.cmd == "token":
         return _token(args)
+    if args.cmd == "helper":
+        return _helper(args)
     return _render(args)
+
+
+def _helper(args) -> int:
+    from .features.helpers import client
+
+    token = client.read_token(args.token_file)
+    missing = [n for n, v in (("--url (SK_HELPER_URL)", args.url), ("--name (SK_HELPER_NAME)", args.name),
+                              ("a token (--token-file or SK_HELPER_TOKEN)", token)) if not v]
+    if missing:
+        print(f"sklent helper: needs {', '.join(missing)}", file=sys.stderr)
+        return 2
+    return client.main(args.url, token, args.name, args.renderer, args.processes, args.once, args.max_bodies)
 
 
 if __name__ == "__main__":

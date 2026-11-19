@@ -28,7 +28,8 @@ def render_folder(d: dict) -> Path | None:
     return moved if moved.is_dir() else stored
 
 
-REPORT_KEYS = ("bodies", "hidden_bodies", "bounds_mm", "palette", "frame_ms", "processes", "timings_s")
+REPORT_KEYS = ("bodies", "hidden_bodies", "bounds_mm", "palette", "frame_ms", "processes", "timings_s",
+               "renderer", "adapter", "host")
 _report_cache: dict[Path, tuple[float, dict | None]] = {}
 
 
@@ -36,7 +37,9 @@ def render_report(folder: Path | None) -> dict[str, Any] | None:
     """The newest set's report.json, trimmed to what the UI's title block and tiles
     show: bodies, hidden_bodies, bounds_mm ([[x, y, z] min, [x, y, z] max] in mm),
     palette (the one this set was rendered with, which can differ from the current
-    setting), frame_ms, processes, timings_s. None when there is no report."""
+    setting), frame_ms, processes, timings_s, and where it was rendered: renderer (gpu |
+    software), adapter and host (this server or a render helper's name; 0.2.1). None
+    when there is no report."""
     path = folder / "report.json" if folder else None
     if path is None or not path.is_file():
         return None

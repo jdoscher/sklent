@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import pytest
 from PIL import Image
 
-from sklent import features, jobs, render, steps
+from sklent import auth, features, jobs, render, steps
 from sklent.render import RenderOptions, render_set
 from sklent.solidcraft import SolidCraft
 
@@ -214,6 +214,7 @@ def test_every_registered_setting_round_trips_through_put_settings():
         "outputs_filepack_formats": ["step"], "outputs_marketplaces": ["printables"],
         "outputs_presets": presets, "views_master_seconds": 12.0,
         "views_beds": "Prusa MK4 250x210x220; Tiny 100x100x100", "views_bed": "Tiny",
+        "render_device": "software", "render_quiet_hours": "22:00-07:00", "render_quiet_mode": "software",
     })
     missing = set(jobs._EXTRA) - set(changes)
     assert not missing, f"no round-trip value for {missing}"
@@ -259,7 +260,7 @@ def test_a_viewer_reaches_no_write_route_and_no_write_tool():
         for method, path in routes:
             url = path.replace("{", "").replace("}", "")  # any value: the gate comes first
             r = c.request(method, url, headers=v, json={})
-            if method != "GET" or path.startswith("/api/tokens"):
+            if method != "GET" or path.startswith(auth.VIEWER_DENIED_PREFIXES):
                 assert r.status_code == 403, (method, path, r.status_code)
             else:
                 assert r.status_code != 403, (method, path, r.text[:200])
@@ -272,10 +273,10 @@ def test_a_viewer_reaches_no_write_route_and_no_write_tool():
             ro = bool(t.annotations and t.annotations.read_only_hint)
             assert ro == (name in mcp_server.READ_ONLY_TOOLS), name
             r = _mcp(c, v, "tools/call", {"name": name, "arguments": {}})
-            if ro:
+            if ro and name not in auth.ADMIN_ONLY_TOOLS:
                 assert r.status_code != 403, name
             else:
-                assert r.status_code == 403 and "can only read" in r.json()["error"]["message"], name
+                assert r.status_code == 403 and r.json()["error"]["message"], name
         listed = _mcp(c, v, "tools/list").json()["result"]["tools"]
         assert {t["name"] for t in listed} == set(tools)
     mcp_server.mcp.session_manager._has_started = False  # the next test's lifespan starts it again

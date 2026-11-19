@@ -318,7 +318,8 @@ def clean_settings(settings: dict) -> tuple[dict, list[str]]:
                 out[k] = v
             except (ValueError, TypeError, KeyError) as exc:
                 errors.append(f"settings.{k}: {exc}")
-        elif k in jobs._EXTRA and isinstance(jobs._EXTRA[k][0], bool) and not k.startswith("inputs_"):
+        elif (k in jobs._EXTRA and isinstance(jobs._EXTRA[k][0], bool)
+              and not k.startswith(("inputs_", "render_", "helpers_"))):  # server-side only
             validate = jobs._EXTRA[k][1]
             try:
                 out[k] = validate(v) if validate else bool(v)
@@ -369,8 +370,15 @@ def store(design_id: str, config: dict, commit: str | None = None) -> None:
                      [design_id, json.dumps({**config, "commit": commit}), db.now()])
 
 
+# A render helper has no database: it sets the claimed design's config here (from the
+# server's settings snapshot) before rendering, and `get` answers from it.
+OVERRIDES: dict[str, dict] = {}
+
+
 def get(design_id: str) -> dict:
     """A design's merged `.sklent.yaml` config ({} when its repo has none)."""
+    if design_id in OVERRIDES:
+        return OVERRIDES[design_id]
     try:
         with db.connect() as conn:
             r = conn.execute("SELECT config FROM inputs_design_configs WHERE design_id = ?", [design_id]).fetchone()

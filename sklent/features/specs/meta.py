@@ -82,9 +82,16 @@ def licence(cfg: dict) -> str | None:
     return str(v) if v else None
 
 
+# A render helper has no forge token: it sets this to fetch through the server
+# (fn(row, rel_path, max_bytes) -> bytes | None).
+REPO_FILE_HOOK: list = []
+
+
 def fetch_repo_file(row: dict, rel_path: str, max_bytes: int = 1 << 20) -> bytes | None:
     """A small file from the design's repo at the rendered commit, or None. `rel_path` is
     relative to the design's folder unless it starts with '/' (the repo root)."""
+    for hook in REPO_FILE_HOOK:
+        return hook(row, rel_path, max_bytes)
     if not row.get("owner") or not row.get("provider") or not rel_path:
         return None
     from sklent.sources import Forge, SourceError

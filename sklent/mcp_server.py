@@ -169,6 +169,8 @@ READ_ONLY_TOOLS = frozenset({
     "get_design_spec", "get_bom", "view_sheet",
     # outputs (O)
     "get_outputs", "listing_readiness", "listing_text", "list_photos",
+    # render helpers (0.2.1); admin only (auth.ADMIN_ONLY_TOOLS)
+    "list_helpers",
 })
 WRITE_TOOLS = frozenset({
     "render_url", "add_source", "scan_source", "render_design", "cancel_job", "set_render_settings",
