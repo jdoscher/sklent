@@ -49,7 +49,11 @@ shared seams (render steps, feature modules, settings registry, `sets.py`) and i
 - Phone: two-row top bar, view pills, the sidebar as a drawer (filters, sources and jobs were
   unreachable on a phone), two columns, the detail as one scrolling sheet, a PWA manifest,
   and `theme-color` following the theme.
-- App icon: the S-in-a-ring mark, now white on Kist's #3A3A3A tile (`scripts/build_icons.py`).
+- New app icon, "Section": a square part cut open by three 45° hatch gaps (a drafting section view),
+  built on Kist's 64-unit grid with its stamped radii, white on Kist's #3A3A3A tile, so the
+  two apps read as a suite. The browser-tab icon is the bare mark in ink that follows the
+  browser's light or dark mode. In the app the mark follows the theme. Everything is built
+  by `scripts/build_icons.py`, with masters in `docs/brand/`. Icon URLs moved to `?v=5`.
 - `app.js` is now native ES modules in `sklent/web/js/` and `styles.css` per-area files in
   `sklent/web/css/`; no build step. Code and styles are served with `Cache-Control: no-cache`
   so an upgrade never runs stale modules.

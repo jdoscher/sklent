@@ -7,7 +7,7 @@ under `sklent/web/`, with no bundler and no build step.
 
 The decisions behind it are in the 0.2 review (U1 "Suite system", U2 "Drafting overlay");
 the options built are UI 1–17 with 9a (label strip), 11a (schedule sidebar), 12a (drawing
-sheet), 15a (sheet-style gate plus the first-run screen), 16a (the S-in-a-ring mark on
+sheet), 15a (sheet-style gate plus the first-run screen), 16a, later replaced (2026-11-19) by the "Section" mark (see Brand below) (the S-in-a-ring mark on
 Kist's #3A3A3A tile, Instrument Serif wordmark) and 17a (no Sklent-side background keying).
 
 ## Layers
@@ -203,3 +203,13 @@ The web seams above have server-side partners. Every feature area is a package i
 
 When a feature adds text on a new surface pair, add the pair to `SKLENT_PAIRS` in
 `tests/test_contrast.py`.
+
+## Brand: the Section mark (2026-11-19)
+
+A square part cut open by three 45° hatch gaps (ISO 128 section hatch, "/" direction), in four solid pieces. It is Kist's sibling: Kist's Corners frame a square from outside, and Section shows the same square cut open.
+- **Grid:** Kist's 64-unit grid. The part spans 8–56 for the bare mark, 16–48 on the app tile, and 12–52 on the tab tile.
+- **Gaps:** 6 units measured along an edge.
+- **Radii:** r2 on the square's outer corners, r0.5 on the cut corners.
+- **Colours:** white on #3A3A3A for tiles. The bare mark uses ink #2B2B2B on light and #ECEAE4 on dark (favicon.svg switches with `prefers-color-scheme`). The app uses `currentColor`, inlined in index.html.
+- **Empty states:** `format.js OUTLINE_MARK` draws the mark as 1.5 px outlines with the last piece solid in the accent.
+- **Rebuilding:** `python scripts/build_icons.py` rebuilds every icon file and `docs/brand/*.svg`. After an icon change, bump `?v=` in index.html and the manifest.
