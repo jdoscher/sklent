@@ -278,6 +278,7 @@ def test_a_viewer_reaches_no_write_route_and_no_write_tool():
                 assert r.status_code == 403 and "can only read" in r.json()["error"]["message"], name
         listed = _mcp(c, v, "tools/list").json()["result"]["tools"]
         assert {t["name"] for t in listed} == set(tools)
+    mcp_server.mcp.session_manager._has_started = False  # the next test's lifespan starts it again
 
 
 # ---------------------------------------------------------------- fixes (brief task 3)
@@ -440,3 +441,254 @@ def test_pr_and_branch_renders_file_into_their_own_kist_folder(settings, monkeyp
     tags = kist.uploads[0]["tags"]
     assert any(t.startswith("rev:") for t in tags)
     assert ([t for t in tags if t.startswith("ref:")] == [tag]) if tag else not any(t.startswith("ref:") for t in tags)
+
+
+# ---------------------------------------------------------------- CSS across every area's sheet
+
+WEB = Path(__file__).resolve().parents[1] / "sklent" / "web"
+CSS_DIR = WEB / "css"
+TOKEN_SHEETS = {"kist-tokens.css", "sk-tokens.css"}
+
+
+def _sheets() -> dict[str, str]:
+    import re
+    return {str(p.relative_to(CSS_DIR)): re.sub(r"/\*.*?\*/", "", p.read_text(), flags=re.S)
+            for p in sorted(CSS_DIR.rglob("*.css")) if p.name not in TOKEN_SHEETS}
+
+
+def _selectors(css: str):
+    """Every selector of every rule (at-rule preludes skipped, nested blocks walked)."""
+    import re
+    for prelude in re.findall(r"([^{}]+)\{", css):
+        prelude = prelude.strip()
+        if not prelude or prelude.startswith("@"):
+            continue
+        for sel in prelude.split(","):
+            yield sel.strip()
+
+
+def _compounds(selector: str):
+    import re
+    sel = re.sub(r"\([^()]*\)", "", selector)  # :not(.x), :is(...) arguments aside
+    sel = re.sub(r"\[[^\]]*\]", "", sel)
+    for part in re.split(r"\s*[\s>+~]\s*", sel):
+        if part:
+            yield part
+
+
+def test_css_collisions_between_area_sheets():
+    """A bare `.name` rule in one sheet also styles every `.x.name` compound in another (all
+    sheets are global): flag a class that is bare in one sheet and a modifier elsewhere.
+    (Python port of Kist's web/tests/css-collisions.test.ts.)"""
+    import re
+    bare: dict[str, set[str]] = {}
+    modifier: dict[str, set[str]] = {}
+    for sheet, css in _sheets().items():
+        for sel in _selectors(css):
+            for i, comp in enumerate(_compounds(sel)):
+                classes = re.findall(r"\.(-?[_a-zA-Z][\w-]*)", comp)
+                rest = re.sub(r"\.(-?[_a-zA-Z][\w-]*)|::?[\w-]+", "", comp).strip()
+                if i == 0 and len(classes) == 1 and not rest:  # `.name` with nothing above it
+                    bare.setdefault(classes[0], set()).add(sheet)
+                elif len(classes) > 1:
+                    for c in classes[1:]:
+                        modifier.setdefault(c, set()).add(sheet)
+    clashes = sorted(f".{c}: bare in {sorted(bare[c])}, a modifier in {sorted(modifier[c] - bare[c])}"
+                     for c in set(bare) & set(modifier) if modifier[c] - bare[c])
+    assert not clashes, "\n".join(clashes)
+
+
+def test_feature_sheets_use_their_area_prefix():
+    """An area sheet's rules start from its own sk-<area>-… class (or a D seam element),
+    so they can't reach into another area's markup."""
+    import re
+    for p in sorted((CSS_DIR / "features").glob("*.css")):
+        area = p.stem
+        css = re.sub(r"/\*.*?\*/", "", p.read_text(), flags=re.S)
+        loose = []
+        for sel in _selectors(css):
+            comps = list(_compounds(sel))
+            if not comps or comps[0].startswith((":root", "html", "body", "@", "from", "to")) or "%" in comps[0]:
+                continue
+            if f"sk-{area}" not in sel and f"sk-{area[:3]}" not in sel:
+                loose.append(sel)
+        assert not loose, (p.name, loose[:10])
+
+
+def _themes():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("tc", Path(__file__).parent / "test_contrast.py")
+    tc = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(tc)
+    return tc, tc.parse_themes(tc.TOKENS.read_text())
+
+
+def test_feature_text_on_its_own_background_passes_contrast():
+    """Every rule in an area sheet that sets both a text colour and a background from
+    tokens passes 4.5:1 in all three themes (3:1 for the ink-faint 'dim' tokens)."""
+    import re
+    tc, themes = _themes()
+    bad = []
+    for sheet, css in _sheets().items():
+        if not sheet.startswith("features/"):
+            continue
+        for body in re.findall(r"\{([^{}]*)\}", css):
+            fg = re.search(r"(?<![-\w])color:\s*var\(--([\w-]+)\)\s*(;|$)", body)
+            bg = re.search(r"background(?:-color)?:\s*var\(--([\w-]+)\)\s*(;|$)", body)
+            if not (fg and bg):
+                continue
+            for theme in tc.THEMES:
+                t = themes[theme]
+                a, b = t.get(fg.group(1)), t.get(bg.group(1))
+                if not (a and b and a.startswith("#") and b.startswith("#")):
+                    continue
+                need = 3.0 if "dim" in fg.group(1) or "faint" in fg.group(1) else 4.5
+                r = tc.contrast(a, b)
+                if r < need:
+                    bad.append(f"{sheet} {theme}: --{fg.group(1)} on --{bg.group(1)} = {r:.2f}")
+    assert not bad, "\n".join(bad)
+
+
+# ---------------------------------------------------------------- cross-feature hooks (brief task 4)
+
+CORE = {"preview": "png", "1080p": "mp4", "reel": "mp4", "discord": "mp4", "gif": "gif", "social": "png",
+        "hires": "png"}
+V_VARIANTS = {"exploded": "png", "explode-anim": "mp4", "section": "png", "config-lineup": "png",
+              "config-1": "png", "highlight": "png", "highlight-turntable": "mp4", "motion-open": "mp4",
+              "transparent": "png", "hero": "png", "plate": "png", "master-4k": "mp4", "frames-zip": "zip",
+              "prores": "mov", "preset-push-in": "mp4"}
+S_VARIANTS = {"spec-card": "png", "bom-sheet": "png", "views-sheet": "png", "views-sheet-pdf": "pdf",
+              "dimensions": "png", "assembly-1": "png"}
+R_VARIANTS = {"timelapse": "mp4", "timelapse-gif": "gif"}
+STILL_EXT = {"png"}
+
+
+def _mp4(path: Path) -> None:
+    import subprocess
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=gray:s=64x36:d=1:r=24",
+                    "-pix_fmt", "yuv420p", str(path)], check=True)
+
+
+@pytest.fixture
+def every_variant(settings, monkeypatch):
+    """A rendered design whose set holds one file of every agreed variant name, plus S's
+    spec.json and bom.json, and a .sklent.yaml-style repo config."""
+    variants = {**CORE, **V_VARIANTS, **S_VARIANTS, **R_VARIANTS}
+    files = []
+    did, folder, source = _design_row(settings)
+    movie = folder / "_movie.mp4"
+    _mp4(movie)
+    for i, (variant, ext) in enumerate(variants.items()):
+        name = f"case-{variant}.{ext}"
+        if ext == "png":
+            Image.new("RGB", (96, 64), (128 + i % 40, 128, 128)).save(folder / name)
+        elif ext in ("mp4", "mov"):
+            shutil.copyfile(movie, folder / name)
+        elif ext == "gif":
+            Image.new("RGB", (32, 18), (128, 128, 128)).save(folder / name)
+        elif ext == "pdf":
+            Image.new("RGB", (32, 18), (255, 255, 255)).save(folder / name, "PDF")
+        else:
+            (folder / name).write_bytes(b"PK\x05\x06" + b"\0" * 18)
+        style = "shaded" if variant not in ("highlight", "highlight-turntable") else "highlight"
+        files.append({"file": name, "style": style, "variant": variant, "width": 96 if ext == "png" else 64,
+                      "height": 64 if ext == "png" else 36})
+    movie.unlink()
+    (folder / "spec.json").write_text(json.dumps({"bodies": 2, "mass_g": 30.6, "material": "PETG",
+                                                  "bounds_mm": [[0, 0, 0], [95, 66, 32]], "licence": "MIT"}))
+    (folder / "bom.json").write_text(json.dumps({"rows": [{"name": "Lid", "qty": 1}, {"name": "M3 screw", "qty": 4}]}))
+    (folder / "report.json").write_text(json.dumps({"bodies": 2, "bounds_mm": [[0, 0, 0], [95, 66, 32]],
+                                                    "options": {"fps": 24}}))
+    from sklent import db
+    with db.connect() as conn:
+        db.update(conn, "designs", did, files=files)
+    cfg = {"title": "Pi case", "licence": "CERN-OHL-S-2.0", "material": "PETG", "highlight": ["Lid"],
+           "bom": "parts/bom.yaml", "steps": [{"title": "Base", "parts": ["Base"]}]}
+    import sklent.repo_config as rc
+    monkeypatch.setattr(rc, "get", lambda design_id: cfg if design_id == did else {})
+    return SimpleNamespace(id=did, folder=folder, source=source, files=files, variants=variants, cfg=cfg)
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="needs ffmpeg")
+def test_every_variant_reaches_the_page_the_pack_and_the_detail_sheet(every_variant):
+    """O iterates set["files"] by variant with no hard-coded list: every still V, S and R
+    make shows up in the project page and the listing pack, and every file of every
+    variant is listed (with a working URL) on the design the detail sheet draws."""
+    import zipfile
+
+    from fastapi.testclient import TestClient
+
+    from sklent.app import app
+    from sklent.features.outputs import listing, page
+    ev = every_variant
+    stills = {v for v, ext in ev.variants.items() if ext in STILL_EXT}
+
+    c = TestClient(app)
+    d = c.get(f"/api/designs/{ev.id}", headers=H).json()
+    assert {f["variant"] for f in d["files"]} == set(ev.variants)
+    for f in d["files"]:
+        assert c.get(f["url"], headers=H).status_code == 200, f["file"]
+
+    built = page.build_design(ev.id, include_files=False)
+    exports = Path(ev.folder) / "exports" if (Path(ev.folder) / "exports").is_dir() else None
+    z = zipfile.ZipFile(next(Path(ev.folder).rglob(built["file"])))
+    html = z.read(next(n for n in z.namelist() if n.endswith("/index.html"))).decode()
+    renders = [n for n in z.namelist() if "/assets/render-" in n]
+    assert len(renders) == len(stills - {"hires"})  # the page drops hires: the square is the same view
+    import html as htmllib
+    text_html = htmllib.unescape(html)
+    shown = {v for v in stills if f"CAD render · {v}" in text_html}
+    assert len(shown) == len(stills - {"hires"}) - 1  # all but the hero, which heads the page
+    assert any(n.endswith("spec.json") for n in z.namelist())  # S's spec.json read by O's page
+    assert "Pi case" in html  # title from the repo config
+
+    pack = listing.build(ev.id, "printables")
+    packed = {f.get("variant") for f in pack["files"] if f.get("kind") == "render"}
+    assert stills - {"hires"} <= packed, stills - {"hires"} - packed
+    text = listing.listing_text(ev.id, name="printables")
+    assert "30.6 g (PETG)" in text and "CERN-OHL-S-2.0" in text  # spec.json + licence via repo_config
+    assert exports is None or exports.is_dir()
+
+
+def test_repo_config_reaches_views_specs_and_outputs(every_variant):
+    """One `.sklent.yaml` (P's repo_config.get) feeds V's highlight, S's material, licence,
+    bom file and assembly steps, and O's title and licence."""
+    from sklent.features.outputs import common
+    from sklent.features.specs import meta
+    from sklent.features.views import highlight_for
+    ev = every_variant
+    assert highlight_for(ev.id) == (["Lid"], ".sklent.yaml")
+    cfg = meta.config(ev.id)
+    assert cfg.get("material") == "PETG" and cfg.get("licence") == "CERN-OHL-S-2.0"
+    assert cfg.get("bom") == "parts/bom.yaml" and cfg.get("steps")[0]["title"] == "Base"
+    m = common.meta(ev.id)
+    assert (m["title"], m["licence"]) == ("Pi case", "CERN-OHL-S-2.0")
+    assert m["from"]["title"] == "repo"
+
+
+def test_spec_json_reaches_the_design_json_for_the_title_block(every_variant):
+    from fastapi.testclient import TestClient
+
+    from sklent.app import app
+    d = TestClient(app).get(f"/api/designs/{every_variant.id}", headers=H).json()
+    assert d["spec"]["mass_g"] == 30.6 and d["spec"]["material"] == "PETG"
+    detail = (WEB / "js" / "detail.js").read_text()
+    assert "d.spec" in detail or "design.spec" in detail  # D's title block reads it
+
+
+def test_review_comment_links_the_kist_share_link(every_variant):
+    """O's share_link(design_id) is what P's review comment links the still to."""
+    from sklent import db
+    from sklent.features.inputs import refs
+    from sklent.features.outputs import share_link
+    ev = every_variant
+    assert share_link(ev.id) is None
+    plain = refs.review_comment(ev.source["id"], "https://sklent.example.com")
+    with db.connect() as conn:
+        conn.execute("INSERT INTO outputs_review (id, scope, target_id, share_url, created_at) VALUES (?,?,?,?,?)",
+                     ["r1", "design", ev.id, "https://kist.example.com/s/abc", db.now()])
+    assert share_link(ev.id) == "https://kist.example.com/s/abc"
+    linked = refs.review_comment(ev.source["id"], "https://sklent.example.com")
+    md = linked["markdown"] if isinstance(linked, dict) else linked
+    assert "https://kist.example.com/s/abc" in md
+    assert "https://kist.example.com/s/abc" not in (plain["markdown"] if isinstance(plain, dict) else plain)

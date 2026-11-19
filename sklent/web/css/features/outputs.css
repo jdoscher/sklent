@@ -103,5 +103,3 @@
   .sk-outputs-gallery { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 }
 
-/* the viewer's "no preview" placeholder for files without a picture (STEP, STL, zips) */
-.viewer .placeholder a { color: var(--sk-sheet-text); }
