@@ -303,6 +303,8 @@ def prune(design_id: str, keep: Any, kist=None) -> list[str]:
                     log.warning("could not trash Kist item %s: %s", item.get("id"), exc)
         shutil.rmtree(s["dir"], ignore_errors=True)
         gone.append(s["id"])
+    if gone:  # compare caches may name pruned sets' pictures
+        shutil.rmtree(design_dir(design_id) / "_compare", ignore_errors=True)
     return gone
 
 
