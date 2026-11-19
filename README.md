@@ -5,6 +5,30 @@ it renders every [SolidCraft](https://github.com/tangency-labs/solidcraft) desig
 STEP, STL and 3MF file) it finds into a media set, then files the set into a
 [Kist](https://github.com/jdoscher/kist) folder.
 
+## What's new in 0.2
+
+| area | what you get | on by default |
+|---|---|---|
+| Design | Kist 2.0's design system: gallery/dark/light, drawing-sheet detail view, phone layout | yes |
+| Inputs | STEP/STL/3MF designs, linked multi-file assemblies, `.sklent.yaml`, branch/tag/PR renders, class sets with deadlines, read-only viewer tokens | STEP and mesh scanning on; posting review comments off |
+| Revisions | every version keeps its set; compare, filmstrip, changelog; Kist version links; build-history timelapse | history on; timelapse off |
+| Views | quick check, per-render outputs, shot presets, masters, exploded, section, configurations, highlight, motion studies, transparent, studio hero, plate, bed fit | quick check, configurations, motion studies, bed fit |
+| Specs | `spec.json` and spec card, BOM, engineering views sheet (PNG/PDF), dimension callout, contact sheet, assembly steps | all but assembly steps |
+| Outputs | marketplace presets, print file pack, project page, listing packs, real photos, brand, Kist review board and share link | presets/pages/packs on demand; file pack, brand and share links off |
+
+### Upgrading from 0.1
+
+- **Older sets are now kept.** A re-render adds a set for the new version instead of
+  replacing the old one, and older Kist items stay (tagged `rev:<commit>`, linked as
+  versions). Untagged versions beyond `revisions_keep` (10) are pruned from disk, never from
+  Kist unless `revisions_prune_kist` is on.
+- **SolidCraft 0.44.1** (from 0.28.0): rebuild the image (`docker compose up -d --build`).
+- **New optional settings** (`views_*`, `specs_*`, `outputs_*`, `revisions_*`, `inputs_*`)
+  live in the app's Settings, not `.env`; see the table under
+  [Configuration](#configuration). Nothing new is outbound unless you turn it on.
+
+## Renders
+
 For each design, in a **shaded** and a **wireframe** (x-ray) style:
 
 | file | size | for |
@@ -19,7 +43,9 @@ For each design, in a **shaded** and a **wireframe** (x-ray) style:
 Every render starts with a **quick check**: one shaded iso still (`<design>-preview.png`,
 1024×1024) made seconds after the design loads and shown on its tile while the rest
 renders. Which of the six files above a render makes is a setting (**Outputs**) and can be
-chosen per render on the design's sheet; none at all is a quick check on its own.
+chosen per render on the design's sheet; none at all is a quick check on its own. A quick
+check of a design that already has a set is kept beside it (`<design>/quick/`) and never
+replaces the full set.
 
 ### Views and render modes
 
@@ -57,7 +83,9 @@ In Kist, each set lands in `SolidCraft/<owner>/<repo>/<design>`, tagged `solidcr
 the file's URL at the rendered commit as its source. A new version never trashes the
 previous one's items: each new item is linked `version_of` the item it follows and stacked
 with it as the cover, so Kist's versions list and compare work on the chain and links to
-older items keep working (see **Revisions**).
+older items keep working (see **Revisions**). Renders of a pull request or another branch
+or tag file into their own subfolder, `<design>/pr-<n>` or `<design>/@<branch>`, tagged
+`ref:pr-<n>` or `ref:<branch>`.
 
 ## Revisions
 
@@ -141,21 +169,21 @@ A design that is only on disk can be rendered without the app:
 ```bash
 docker compose run --rm app sklent render /data/some.sc /data/out --palette white
 docker compose run --rm app sklent render /data/robot.step /data/out \
-  --settings '{"styles": ["shaded"]}'          # any render or feature setting, as JSON
-# feature settings as JSON, e.g. assembly steps on:
-docker compose run --rm app sklent render /data/some.sc /data/out --settings '{"specs_assembly": true}'
+  --settings '{"styles": ["shaded"], "specs_assembly": true}'   # any render or feature setting
+docker compose run --rm app sklent render /data/arm.sc /data/out --outputs 1080p,gif --highlight 'Arm*'
 ```
 
 `sklent render` applies the `.sklent.yaml` files in the folders above the design (up to the
 git root; `--config PATH` names one, `--config none` skips them), then `--palette` /
-`--seconds`, then `--settings`.
-`--settings '{"revisions_timelapse": true}'` passes feature settings to that render.
+`--seconds`, then `--settings`, `--outputs` (`''` = quick check only) and `--highlight`.
 
-### Configuration (`.env`)
+### Configuration
+
+Server settings go in `.env`:
 
 | variable | default | |
 |---|---|---|
-| `SK_TOKEN` | | **Required.** Token for the UI, API and MCP (16+ chars) |
+| `SK_TOKEN` | | **Required.** Admin token for the UI, API and MCP (16+ chars) |
 | `SK_PORT` | `8090` | Host port |
 | `SK_DATA` | `./data` | Database and local render sets |
 | `SK_KIST_URL`, `SK_KIST_TOKEN` | | Kist to file sets into; empty URL keeps renders local |
@@ -166,21 +194,49 @@ git root; `--config PATH` names one, `--config none` skips them), then `--palett
 | `SK_RENDER_PROCESSES` | `4` | Most SolidCraft processes per design (see below) |
 | `SK_RENDER_GID` | `992` | Group owning `/dev/dri/renderD128` on the host |
 
-Render settings (palette, length, frame rate, camera pitch, still and GIF sizes, styles)
-are in the UI's **Settings** and the MCP `set_render_settings` tool. Feature settings are in
-the same Settings sheet and `GET/PUT /api/settings`:
+Render and feature settings live in the app: the UI's **Settings**, `GET/PUT
+/api/settings`, MCP `set_render_settings` / `set_views_settings`, and per repo in
+`.sklent.yaml` (`settings:`). Every key, with its default:
 
 | setting | default | |
 |---|---|---|
+| `palette` | `cool-grey` | `cool-grey` or `white`; parts are never rendered in their own colours |
+| `seconds`, `fps`, `pitch_deg` | `8`, `30`, `24` | Turntable length, frame rate, camera pitch |
+| `hires_width` × `hires_height`, `social_size`, `gif_width`, `gif_fps` | `3840×2160`, `2048`, `640`, `15` | Still and GIF sizes |
+| `styles` | `shaded, wireframe` | Which looks to render |
+| `outputs` | all six | Which of `1080p`, `reel`, `discord`, `gif`, `social`, `hires`; none = quick check only |
+| `inputs_step`, `inputs_mesh` | on, on | Scans find `.step`/`.stp`, and `.stl`/`.3mf` (exports next to a `.sc` skipped) |
+| `inputs_review_post` | off | Allow **Post** of a review comment to the pull request (only ever on a click) |
+| `inputs_public_url` | `""` | This server's URL for links in review comments (empty: the address the page uses) |
 | `revisions_keep` | `10` | Untagged versions kept on disk besides every tagged one; `0` keeps all |
 | `revisions_prune_kist` | off | Also trash pruned versions' Kist items (off keeps every Kist link working) |
 | `revisions_timelapse` | off | Build-history timelapse MP4 and GIF |
-| `revisions_timelapse_max_features` | `200` | Skip the timelapse above this many features |
-| `revisions_timelapse_max_bodies` | `100` | Skip the timelapse above this many bodies |
-| `inputs_step` | `true` | Scans find `.step`/`.stp` files |
-| `inputs_mesh` | `true` | Scans find `.stl`/`.3mf` files (exports next to a `.sc` design are skipped) |
-| `inputs_review_post` | `false` | Allow **Post** of a review comment to the pull request (only ever on a click) |
-| `inputs_public_url` | `""` | This server's URL for links in review comments (empty: the address the page uses) |
+| `revisions_timelapse_max_features`, `_max_bodies` | `200`, `100` | Skip the timelapse above these |
+| `views_shot_half_orbit`, `_push_in`, `_top_to_iso`, `_low_angle` | off | Shot presets; `views_shot_seconds` (6) |
+| `views_master_4k`, `views_master_prores`, `views_master_zip` | off | Edit-ready masters; `views_master_seconds` (0 = the turntable's length) |
+| `views_exploded` | off | Exploded still and animation; `views_explode_scale` (1) |
+| `views_section` | off | Section cut through the centre |
+| `views_configs` | on | Configuration stills and lineup (designs with 2+ rows); `views_configs_max` (8) |
+| `views_motion` | on | Motion-study clips (designs with studies); `views_motion_max` (6) |
+| `views_transparent` | off | RGBA stills |
+| `views_hero` | off | Path-traced studio still; `views_hero_timeout` (900 s) |
+| `views_plate` | off | Plate view on a 10 mm grid |
+| `views_bedfit`, `views_bed`, `views_beds` | on, `Bambu Lab X1/P1/A1`, four printers | Bed-fit badge and the bed list |
+| `specs_card` | on | Spec card still (`spec.json` is written regardless) |
+| `specs_material` | `""` | Material for mass when `.sklent.yaml` names none |
+| `specs_bom`, `specs_bom_file` | on, `bom.yaml` | Parts list (CSV, JSON, sheet) and the repo's BOM file |
+| `specs_views` | on | Views sheet PNG + PDF |
+| `specs_dimensions` | on | Dimension still |
+| `specs_assembly`, `specs_assembly_max_steps` | off, `20` | Assembly step images |
+| `outputs_presets` | seven presets | Output presets (see [Outputs](#outputs-and-publishing)) |
+| `outputs_filepack` | off | Export STEP/3MF/STL during renders |
+| `outputs_filepack_formats`, `_body_budget`, `_max_parts`, `_per_body`, `_quality`, `_exclude` | `step, 3mf, stl`, `64`, `2000`, on, `standard`, none | File pack details |
+| `outputs_marketplaces` | all five | Marketplaces checked and packed |
+| `outputs_licence` | `""` | Licence when neither the design nor the repo sets one |
+| `outputs_brand_text`, `_mark`, `_position`, `_opacity`, `_size`, `_photos` | none, off, `bottom-right`, `0.6`, `12` %, on | Watermark on exported copies only |
+| `outputs_brand_title_card`, `_end_card`, `_card_text`, `_card_seconds` | off, off, none, `1.5` | Cards on exported clips |
+| `outputs_review_share_links` | off | Allow Kist share links (public pages, made only on a click) |
+| `outputs_review_proofing`, `_share_days`, `_allow_download` | on, `30`, off | Share link details |
 
 ## Inputs and access
 
@@ -270,15 +326,7 @@ hash), lists them and revokes them; `sklent token create|list|revoke` does the s
 host. A viewer can browse, view and download, through the UI, every `GET` under `/api`, and
 the MCP tools that only read. Rendering, adding or removing sources, changing settings,
 managing tokens and every MCP tool that changes something answer 403, and the UI hides
-those controls.
-Render settings (palette, length, frame rate, camera pitch, still and GIF sizes, styles,
-outputs, and the `views_*` settings above) are in the UI's **Settings** and the MCP
-`set_render_settings` / `set_views_settings` tools.
-
-| render setting | default | |
-|---|---|---|
-| `outputs` | all six | which of `1080p`, `reel`, `discord`, `gif`, `social`, `hires` to make; `[]` = quick check only |
-| `views_*` | see **Views and render modes** | shot presets, masters, extra views, beds |
+those controls. The token gate takes either kind of token.
 
 ## Specs and sheets
 
@@ -302,16 +350,7 @@ pages and a PDF, hero stills with mono labels) is made on demand from the grid b
 the source's row, or `POST /api/sources/{id}/contact-sheet`; with Kist on it is filed once
 per version of the sheet, tagged `format:contact-sheet`.
 
-| setting | default | |
-|---|---|---|
-| `specs_card` | `true` | spec card still (`spec.json` is written regardless) |
-| `specs_material` | `""` | material assigned for mass when `.sklent.yaml` names none (`material.list`: PLA, ABS Plastic, Aluminum, …) |
-| `specs_bom` | `true` | parts list (CSV, JSON, sheet) |
-| `specs_bom_file` | `bom.yaml` | the BOM file next to the design in the repo; `.sklent.yaml` `bom:` overrides it or holds the list inline |
-| `specs_views` | `true` | views sheet PNG + PDF |
-| `specs_dimensions` | `true` | dimension still |
-| `specs_assembly` | `false` | assembly step images |
-| `specs_assembly_max_steps` | `20` | skip (with a note in the report) above this many steps |
+Settings: `specs_*` in the [Configuration](#configuration) table.
 
 `bom.yaml`:
 
@@ -397,30 +436,7 @@ Listing details (title, summary, licence, print notes, tags) come from the desig
 `description`, `print_notes`, `tags`, and `print_exclude` for the file pack), else the file
 name and the `outputs_licence` setting.
 
-| setting | default | |
-|---|---|---|
-| `outputs_presets` | the seven above | Preset list: `{name, label, width, height, format (jpg/png/webp/pdf/mp4/gif), max_mb, fill, anchor (center/left/right), seconds, enabled}` |
-| `outputs_filepack` | `false` | Export STEP/3MF/STL during renders |
-| `outputs_filepack_formats` | `step, 3mf, stl` | Which formats |
-| `outputs_filepack_body_budget` | `64` | Whole-design mesh and 3MF up to this many bodies |
-| `outputs_filepack_max_parts` | `2000` | Most per-body STLs |
-| `outputs_filepack_per_body` | `true` | Per-body STLs for multi-body designs below the budget too |
-| `outputs_filepack_quality` | `standard` | Mesh quality: standard, fine, finest |
-| `outputs_filepack_exclude` | none | Body name patterns to leave out |
-| `outputs_marketplaces` | all five | Marketplaces checked and packed |
-| `outputs_licence` | none | Licence when neither the design nor the repo sets one |
-| `outputs_brand_text` | none | Watermark text |
-| `outputs_brand_mark` | `false` | Use the uploaded PNG mark |
-| `outputs_brand_position`, `_opacity`, `_size` | `bottom-right`, `0.6`, `12` % | Where and how strong |
-| `outputs_brand_photos` | `true` | Mark real photos in packs too |
-| `outputs_brand_title_card`, `_end_card` | `false` | Cards on exported clips |
-| `outputs_brand_card_text`, `_card_seconds` | none, `1.5` | End-card line, card length |
-| `outputs_review_share_links` | `false` | Allow Kist share links (public pages) |
-| `outputs_review_proofing` | `true` | Guest proofing on share links |
-| `outputs_review_share_days` | `30` | Expiry (0 = never) |
-| `outputs_review_allow_download` | `false` | Guests may download |
-
-These are render settings (UI **Settings**, `GET/PUT /api/settings`); there are no new
+Settings: `outputs_*` in the [Configuration](#configuration) table; there are no new
 environment variables.
 
 ## MCP
@@ -432,90 +448,85 @@ claude mcp add --transport http sklent http://<host>:8090/mcp \
   --header "Authorization: Bearer $SK_TOKEN"
 ```
 
-| tool | |
-|---|---|
-| `render_url` | Scan a URL now and queue renders; returns job ids |
-| `wait_for_job`, `job_status`, `list_jobs` | Follow progress |
-| `cancel_job` | Drop a queued job, or stop a running render (its SolidCraft processes are killed) |
-| `get_render_set` | Files, sizes, download paths, Kist folder and item ids |
-| `view_render` | See a still (image content) |
-| `add_source`, `list_sources`, `scan_source`, `list_designs`, `render_design` | Finer control |
-| `get_render_settings`, `set_render_settings` | Palette, length, sizes |
-| `list_sets` | Every kept version of a design: commit, message, tags, files |
-| `compare_sets` | Pixel compare of two versions (changed share, bounding box, mask and composite URLs) plus the commits in between |
-| `view_compare` | See a compare as one picture: older, newer, changes (image content) |
-| `add_class_source`, `list_class_submissions` | Class sets: add one; who handed in what by the deadline |
-| `review_comment`, `post_review_comment` | Review Markdown for a source's renders; posting only when `inputs_review_post` is on |
-| `get_design_inputs` | A design's format, linked files, `.sklent.yaml` config and ref |
+Tools marked **R** only read; a viewer token may call those and nothing else.
 
-A viewer token may call only the tools that read (`list_*`, `get_*`, `job_status`,
-`wait_for_job`, `view_render`, `review_comment`, …).
-| `quick_check` | Queue a render of just the quick-check still |
-| `render_outputs` | Queue a render with chosen outputs and views (`{"views_exploded": true}`, …) for that render only |
-| `get_views` | Quick-check URL, bed fit, configurations, studies, highlight, why views were skipped |
-| `set_highlight` | A design's "my part" bodies (names or globs) |
-| `view_output` | See any still of a set by variant (`exploded`, `section`, `plate`, …), or the quick check while rendering |
-| `set_views_settings` | `outputs` and `views_*` settings |
-| `get_design_spec`, `get_bom` | A design's `spec.json` and parts list |
-| `view_sheet` | See a spec card, parts sheet, views sheet, dimension still or assembly step |
-| `make_contact_sheet` | Every rendered design of a source on one sheet (PNG pages + PDF) |
-| `get_outputs` | A design's presets, print files, photos, listing details, readiness and Kist board |
-| `make_output_preset` | Make one preset or all enabled ones; returns download paths and whether each fits |
-| `build_file_pack` | The print pack zip (README, licence, manifest), optionally split (`split_mb`) |
-| `export_project_page` | Offline HTML page for a design or a source (zip) |
-| `build_listing_pack`, `listing_readiness`, `listing_text` | Marketplace packs, the checklist, the listing text |
-| `set_listing_details` | Title, summary, licence, print notes, tags |
-| `attach_photo`, `list_photos` | Real print photos (base64 in) |
-| `make_review_board`, `create_share_link`, `revoke_share_link` | Kist board; public share link only when the setting allows and the user asks |
+| tool | | |
+|---|---|---|
+| `render_url` | Scan a URL now and queue renders; returns job ids | |
+| `wait_for_job`, `job_status`, `list_jobs` | Follow progress | R |
+| `cancel_job` | Drop a queued job, or stop a running render (its SolidCraft processes are killed) | |
+| `get_render_set` | Files, sizes, download paths, Kist folder and item ids | R |
+| `view_render` | See a still (image content) | R |
+| `list_sources`, `list_designs` | What's there | R |
+| `add_source`, `scan_source`, `render_design` | Finer control | |
+| `get_render_settings` / `set_render_settings` | Palette, length, sizes | R / |
+| `list_sets` | Every kept version of a design: commit, message, tags, files | R |
+| `compare_sets` | Pixel compare of two versions (changed share, bounding box, mask and composite URLs) plus the commits in between | R |
+| `view_compare` | See a compare as one picture: older, newer, changes | R |
+| `add_class_source` / `list_class_submissions` | Class sets: add one; who handed in what by the deadline | / R |
+| `review_comment` / `post_review_comment` | Review Markdown for a source's renders; posting only when `inputs_review_post` is on | R / |
+| `get_design_inputs` | A design's format, linked files, `.sklent.yaml` config and ref | R |
+| `quick_check` | Queue a quick-check still (kept beside the current set) | |
+| `render_outputs` | Queue a render with chosen outputs and views (`{"views_exploded": true}`, …) for that render only | |
+| `get_views` | Quick-check URL, bed fit, configurations, studies, highlight, why views were skipped | R |
+| `set_highlight` | A design's "my part" bodies (names or globs) | |
+| `view_output` | See any still of a set by variant (`exploded`, `section`, `plate`, …) | R |
+| `set_views_settings` | `outputs` and `views_*` settings | |
+| `get_design_spec`, `get_bom` | A design's `spec.json` and parts list | R |
+| `view_sheet` | See a spec card, parts sheet, views sheet, dimension still or assembly step | R |
+| `make_contact_sheet` | Every rendered design of a source on one sheet (PNG pages + PDF) | |
+| `get_outputs` | A design's presets, print files, photos, listing details, readiness and Kist board | R |
+| `make_output_preset` | Make one preset or all enabled ones | |
+| `build_file_pack` | The print pack zip (README, licence, manifest), optionally split (`split_mb`) | |
+| `export_project_page` | Offline HTML page for a design or a source (zip) | |
+| `build_listing_pack` / `listing_readiness`, `listing_text` | Marketplace packs / the checklist and listing text | / R |
+| `set_listing_details` | Title, summary, licence, print notes, tags | |
+| `attach_photo` / `list_photos` | Real print photos (base64 in) | / R |
+| `make_review_board`, `create_share_link`, `revoke_share_link` | Kist board; public share link only when the setting allows and the user asks | |
 
 With Kist's own MCP connected as well, an agent can go on to browse, view and tag the
 filed sets there.
 
 ## API
 
-`/api/sources`, `/api/designs`, `/api/designs/{id}/render`, `/api/designs/{id}/files/{name}`,
-`/api/render-url`, `/api/jobs`, `POST /api/jobs/{id}/cancel`, `/api/settings`, `/api/status`;
-see `sklent/api.py`. Inputs and access add `GET /api/whoami`, `GET /api/designs/{id}/inputs`,
-`GET|POST /api/sources/{id}/review-comment`, `GET|POST /api/classes`,
-`GET|PUT /api/sources/{id}/class`, and `GET|POST /api/tokens`, `DELETE /api/tokens/{id}`
-(see `sklent/features/inputs/`).
-see `sklent/api.py`. Views: `GET /api/designs/{id}/views`, `GET /api/designs/{id}/views/preview`
-(the quick-check still, also while rendering), `POST /api/designs/{id}/views/render`
-(`{outputs?, preview_only?, settings?}`: this render's choice), `GET|PUT
-/api/designs/{id}/views/highlight` (`{names}`), `GET /api/views/beds`.
-see `sklent/api.py`. Specs and sheets add `/api/designs/{id}/spec`, `/api/designs/{id}/bom`,
-`/api/designs/{id}/assembly`, `POST /api/sources/{id}/contact-sheet` and
-`/api/sources/{id}/contact-sheet.png?page=N` / `.pdf`.
-see `sklent/api.py`. Outputs (`sklent/features/outputs`): `/api/designs/{id}/outputs` (summary),
-`…/outputs/meta`, `…/outputs/presets[/{name}[/file]]`, `…/outputs/presets.zip`,
-`…/outputs/filepack`, `…/outputs/exports/{file}`, `…/outputs/page[.zip]`,
-`…/outputs/listing[/{market}[/text]]`, `…/outputs/photos[/{photo}[/file]]`,
-`…/outputs/review[/board|/share]`, the same `page` and `review` routes under
-`/api/sources/{id}/outputs/`, and `/api/outputs/{brand,brand/mark,brand/preview,readiness,marketplaces,presets/defaults}`.
+Core: `/api/sources`, `/api/designs`, `/api/designs/{id}/render`, `/api/designs/{id}/files/{name}`,
+`/api/render-url`, `/api/jobs`, `POST /api/jobs/{id}/cancel`, `/api/settings`, `/api/status`
+(`sklent/api.py`). Viewer tokens get every `GET` (except `/api/tokens`) and nothing else.
 
-Each design carries `blob` (its file's git blob SHA, the sheet's revision) and `report`:
-`{bodies, hidden_bodies, bounds_mm, palette, frame_ms, processes, timings_s}` from its newest
-render set's `report.json` (`bounds_mm` is `[[x, y, z] min, [x, y, z] max]`; `palette` is the
-one that set was rendered with), or `null` before the first render, and `revisions`:
-`{count, tagged, tags}` (kept versions, how many are tagged, the current version's tags).
+- **Inputs** (`sklent/features/inputs/`): `GET /api/whoami`, `GET /api/designs/{id}/inputs`,
+  `GET|POST /api/sources/{id}/review-comment`, `GET|POST /api/classes`,
+  `GET|PUT /api/sources/{id}/class`, `GET|POST /api/tokens`, `DELETE /api/tokens/{id}`.
+- **Revisions**: `GET /api/designs/{id}/sets` (newest first), `/sets/{set}`,
+  `/sets/{set}/files/{name}`, `/compare?a=&b=&style=&variant=&frame=` (a older, b newer;
+  defaults: the current version against the one before), `/compare/diff.png`,
+  `/compare/frame.png?set=&variant=&frame=`, `/compare/composite.png`, `/changelog?base=&head=`.
+- **Views**: `GET /api/designs/{id}/views`, `GET /api/designs/{id}/views/preview` (the
+  quick-check still, also while rendering), `POST /api/designs/{id}/views/render`
+  (`{outputs?, preview_only?, settings?}`), `GET|PUT /api/designs/{id}/views/highlight`
+  (`{names}`), `GET /api/views/beds`.
+- **Specs**: `/api/designs/{id}/spec`, `/bom`, `/assembly`, `POST /api/sources/{id}/contact-sheet`,
+  `/api/sources/{id}/contact-sheet.png?page=N` / `.pdf`.
+- **Outputs** (`sklent/features/outputs`): `/api/designs/{id}/outputs` (summary),
+  `…/outputs/meta`, `…/outputs/presets[/{name}[/file]]`, `…/outputs/presets.zip`,
+  `…/outputs/filepack`, `…/outputs/exports/{file}`, `…/outputs/page[.zip]`,
+  `…/outputs/listing[/{market}[/text]]`, `…/outputs/photos[/{photo}[/file]]`,
+  `…/outputs/review[/board|/share]`, the same `page` and `review` routes under
+  `/api/sources/{id}/outputs/`, and `/api/outputs/{brand,brand/mark,brand/preview,readiness,marketplaces,presets/defaults}`.
 
-Revisions: `GET /api/designs/{id}/sets` (newest first), `/sets/{set}`,
-`/sets/{set}/files/{name}`, `/compare?a=&b=&style=&variant=&frame=` (a older, b newer;
-defaults: the current version against the one before), `/compare/diff.png` (alpha mask of the
-changed pixels), `/compare/frame.png?set=&variant=&frame=`, `/compare/composite.png`, and
-`/changelog?base=&head=`.
-one that set was rendered with), or `null` before the first render. They also carry `format`
-(`sc`, `step`, `stl`, `3mf`), `inputs` (`{links, notes}` for an assembly, else `null`),
-`config` (the merged `.sklent.yaml`, or `null`), `ref_info` (`{kind: pull|ref, label, …}` off
-the default branch) and `due` (`{deadline, committed_at, after_due}` for a deadline source).
-one that set was rendered with), or `null` before the first render. `views` holds
-`{preview_url, bed_fit}` (`bed_fit`: `{bed, label, fits, largest: {name, size}, parts,
-too_big, fits_beds}` or `null`).
+Each design in `/api/designs` carries:
 
-`sklent render` takes `--outputs 1080p,gif` (`--outputs ''` for a quick check),
-`--settings '{"views_exploded": true}'` and `--highlight 'Arm*,Gripper'`.
-one that set was rendered with), or `null` before the first render. With specs on it also
-carries `spec`, the newest set's `spec.json`.
+- `blob` (its file's git blob SHA, the sheet's revision) and `report`: `{bodies,
+  hidden_bodies, bounds_mm, palette, frame_ms, processes, timings_s}` from its newest set's
+  `report.json` (`bounds_mm` is `[[x, y, z] min, [x, y, z] max]`), or `null` before the first
+  render;
+- `revisions`: `{count, tagged, tags}` (kept versions, how many are tagged, the current
+  version's tags);
+- `format` (`sc`, `step`, `stl`, `3mf`), `inputs` (`{links, notes}` for an assembly),
+  `config` (the merged `.sklent.yaml`), `ref_info` (`{kind: pull|ref, label, …}` off the
+  default branch) and `due` (`{deadline, committed_at, after_due}` for a deadline source);
+- `views`: `{preview_url, bed_fit}` (`bed_fit`: `{bed, label, fits, largest: {name, size},
+  parts, too_big, fits_beds}` or `null`);
+- `spec`: the newest set's `spec.json`, or `null`.
 
 ## Limits
 
@@ -523,5 +534,8 @@ carries `spec`, the newest set's `spec.json`.
 - Mesh inputs (STL, 3MF) have no volume, so mass and section caps don't apply to them.
 - SolidCraft's headless renderer ignores `view.visual_style`, so the wireframe style is an
   x-ray: see-through bodies with every edge (see `docs/spike.md`).
+- The views sheet draws visible edges only: hidden lines wait for SolidCraft 0.45's
+  `drawing.*` commands (the sheet switches over when it finds them).
+- Transparent output is stills only; there is no transparent video yet.
 
 MIT licensed.

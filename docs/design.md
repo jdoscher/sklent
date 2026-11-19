@@ -56,12 +56,13 @@ change that breaks a text/surface pair fails `test_contrast.py`.
 | `sklent/web/js/store.js` | design system | state, poll loop, `onChange` / `emit` |
 | `sklent/web/js/ctx.js` | design system | the object handed to every seam callback |
 | `sklent/web/js/detail.js` | design system (seam) | `registerDetailSection`, `registerTitleBlockField` |
-| `sklent/web/js/sidebar.js` | design system (seam) | `registerSidebarSection`, `registerSourceAction` |
-| `sklent/web/js/tiles.js` | design system (seam) | `registerTileBadge` |
-| `sklent/web/js/settings.js` | design system (seam) | `registerSettingsGroup` |
+| `sklent/web/js/sidebar.js` | design system (seam) | `registerSidebarSection`, `registerSourceAction` (added by specs) |
+| `sklent/web/js/tiles.js` | design system (seam) | `registerTileBadge`, `registerTileFigure` |
+| `sklent/web/js/settings.js` | design system (seam) | `registerSettingsGroup` (field types incl. `checklist`; optional `render`) |
 | `sklent/web/js/grid.js`, `theme.js`, `toast.js`, `confirm.js`, `format.js`, `icons.js`, `dom.js`, `main.js` | design system | |
 | `sklent/web/js/features.js` | **feature builders** | one `import './features/<name>.js';` line per feature |
-| `sklent/web/js/features/*.js` | **feature builders** | feature UI, using only the seams below |
+| `sklent/web/js/features/*.js` | **feature builders** | feature UI, using only the seams below: `revisions.js`, `inputs-access.js`, `inputs-sources.js`, `inputs-classes.js`, `views.js`, `specs.js`, `outputs.js` |
+| `sklent/web/css/features/<area>.css` | **feature builders** | one sheet per area, classes prefixed `sk-<area>-` (tested), tokens only |
 | `docs/design.md`, `scripts/sync_kist_tokens.py`, `scripts/build_icons.py` | design system | |
 
 Feature code doesn't edit design-system files; it calls the seams. If a seam is missing
@@ -156,6 +157,25 @@ A group in the render-settings spec sheet. Built-ins: palette (0), turntable (10
 `PUT /api/settings` as the built-in fields, so the server must accept the new keys (add them
 to its settings first; it rejects unknown ones). A group may also pass `render(container, ctx)` to draw rows it
 manages itself under its heading (Settings → Tokens does); those aren't sent with Save.
+
+## Backend seams
+
+The web seams above have server-side partners. Every feature area is a package in
+`sklent/features/` and plugs in through these; shared files only call them.
+
+| seam | where | signature / contract |
+|---|---|---|
+| Feature registry | `sklent/features/__init__.py` | `MODULES` (one line per area: `revisions`, `inputs`, `views`, `specs`, `outputs`); each module exposes `SCHEMA` (additive SQL), `router` (mounted at `/api`) and `register_mcp(mcp)` |
+| Render steps | `sklent/steps.py` | `register_step(name, run, *, order, when)`; `run(ctx: StepContext)` with `ctx.sc`, `ctx.add(...)`, `ctx.guard`, `ctx.restore()`, `ctx.settings`, `ctx.enabled(key)`, `ctx.info` (world-placed bodies), `ctx.box`. A failing step never fails the render. Orders: views 10–48, specs 50–79, revisions 80, outputs 90. Skipped on a quick check (`settings["quick_check"]`) |
+| Settings registry | `sklent/jobs.py` | `register_setting(key, default, validate)`; `get_all_settings(design_id=None)` and `get_options(design_id=None)` apply a repo's `.sklent.yaml` overrides |
+| Render path | `sklent/jobs.py` `_render` | download (`inputs.links.fetch_design`) → options (`get_options(id)`, `get_all_settings(id)`, then `views.render_overrides(id, opts, settings)`) → `settings["design"]` = the design row → `render_set` into a staging dir → Kist filing (`rev:`, `ref:` tags, version links) → `sets.promote` → keep policy |
+| Render sets | `sklent/sets.py` (revisions owns it) | `latest_set(design_id)`, `get_set(design_id, set_id)`, `list_sets(design_id)`, `read_json(folder, name)`, `write_json(folder, name, data)`; one set per blob; `commit_sha` is always a commit |
+| Framing | `sklent/render.py` | `world_bodies(sc, info)` (measure's world boxes; extra placements in `placed`), `placed_bounds(info)`; `ortho_fit`, `shot_path`, `paint_style`, `plan(opts, settings)` |
+| Views | `sklent/features/views` | `render_overrides(design_id, opts, settings)`; `steps.render_job(sc, path, w, h, cam, ...)` |
+| Specs | `sklent/features/specs` | `meta.design_row(ctx)` (reads `ctx.settings["design"]`), `ortho.register_sheet_backend(name, fn)`, `ortho.drawing_support(sc)` (SolidCraft ≥ 0.45 `drawing.*`) |
+| Repo config | `sklent/repo_config.py` | `get(design_id) -> dict`, `render_overrides(design_id)`, `for_local(path)`, `parse(bytes)`, `resolve(path, files)`; read by views (highlight), specs (material, licence, bom, steps), outputs (title, licence) |
+| Share links | `sklent/features/outputs` | `share_link(design_id) -> str \| None` (never creates one); used by the inputs review comment |
+| Viewer gate | `sklent/auth.py`, `sklent/mcp_server.py` | viewers get `GET` under `/api` (not `/api/tokens`) and MCP tools in `mcp_server.READ_ONLY_TOOLS` (annotated `readOnlyHint`); every tool must be in `READ_ONLY_TOOLS` or `WRITE_TOOLS` (tested) |
 
 ## Vocabulary
 

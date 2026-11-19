@@ -1,77 +1,29 @@
 # Changelog
 
-## [Unreleased]
+## [0.2.0] - unreleased
 
-### Revisions (0.2 builder R)
+The 0.2 review build: Kist 2.0's design system, then six feature areas built in parallel on
+shared seams (render steps, feature modules, settings registry, `sets.py`) and integrated.
 
-- **Revision history (F1).** Every rendered version of a design keeps its own render set
-  (`set.json`: the commit that made it, its message, author and date, git tags, files, Kist
-  items) instead of the newest replacing the rest. Re-rendering the same version replaces
-  only its set. Keep policy `revisions_keep` (tagged versions plus the newest 10 untagged on
-  disk; `0` keeps all); Kist is never pruned unless `revisions_prune_kist`.
-- **Kist versions.** A re-render no longer trashes the previous set's items. Every item
-  carries `rev:<commit10>` (items filed before this get theirs from their notes), and each
-  new item is linked `version_of` the item it follows and stacked with it as the cover, so
-  Kist's versions and compare work on the chain and existing Kist links keep working.
-- **Compare, filmstrip, changelog.** Two new sheets under Revisions: a slider, side by side
-  or changed-pixel view (numpy mask in the sheet's ink) of any still or the same turntable
-  frame, with the commits in between from the forge; and a filmstrip of one still per
-  version on a hairline timeline. Tile badge `N rev`; title-block Tags and Versions.
-  `GET /api/designs/{id}/sets`, `/compare`, `/changelog` and friends; MCP `list_sets`,
-  `compare_sets`, `view_compare`.
-- **Cancel keeps the old set.** A render writes into a staging folder and swaps it in once
-  finished, so cancelling (or a failure in) a forced re-render leaves the design's set as
-  it was.
-- **Build-history timelapse (F29).** Render step `timelapse` (`revisions_timelapse`, off):
-  `timeline.rollback` through the feature history, one still per step, as MP4 and GIF;
-  skipped above `revisions_timelapse_max_bodies` (100) or `_max_features` (200), with the
-  reason in the report.
-- `sklent render --settings JSON` passes feature settings to a one-off render.
-### Views and render modes (0.2 builder V)
+### Upgrading from 0.1
 
-- Quick check (F17): every render first makes one shaded iso still, guarded for colour, shown
-  on the tile and the sheet while the rest renders. `RenderOptions.outputs` (Settings →
-  Outputs, and per render on the sheet, `POST /api/designs/{id}/views/render`, MCP
-  `quick_check` / `render_outputs`) picks which of the six files to make; none is a quick
-  check alone. Frames that no chosen output needs aren't rendered.
-- Shot presets and masters (F24): half orbit onto the iso angle, push-in, top-down to iso and
-  a low angle, eased and fitted to the part; 4K H.264, ProRes 422 HQ and zipped PNG-sequence
-  masters that loop exactly, up to 60 s. Off by default.
-- Exploded still and explode animation (F4), section cut through the centre with filled
-  caps (F9), configuration stills and a same-scale lineup (F10, on when a design has
-  configurations), "my part" highlight still and turntable (F20, per design or
-  `.sklent.yaml`), motion-study clips (F22, on when a design has studies), transparent
-  stills and a path-traced studio hero (F15), and a plate view on a 10 mm grid (F16), as
-  render steps 10–48. Each records what it made or why it skipped in `report.json`
-  (`views`), shown in the sheet's **Views** section.
-- Bed-fit badge on tiles and in the title block, against a named printer bed from an
-  editable list (F16).
-- `sklent render` gained `--outputs`, `--settings` and `--highlight`.
-- Seams: `registerTileFigure` (tiles.js) and a `checklist` field type (settings.js).
-### Outputs and publishing (0.2 builder O)
+- **Older render sets are now kept.** A re-render no longer replaces or trashes the previous
+  set: every version of a design keeps its own folder under the design and its Kist items
+  stay, tagged `rev:<commit>` and linked as versions. Disk use grows with history; the keep
+  policy `revisions_keep` (default: tagged versions plus the newest 10 untagged) prunes old
+  sets from disk only. Sets from 0.1 are adopted as they are (their items get a `rev:` tag
+  from their notes on the next render).
+- **SolidCraft 0.28.0 → 0.44.1** in the Docker image (pinned by SHA-256). Rebuild the image.
+  Engineering drawings with hidden lines need SolidCraft 0.45 (the views sheet is ready for
+  it, feature-detected).
+- **New optional settings**, all in Settings and `GET/PUT /api/settings`, none in `.env`:
+  `views_*`, `specs_*`, `outputs_*`, `revisions_*`, `inputs_*`. Anything outbound (forge
+  comments, Kist share links) and anything expensive is off by default; see the README's
+  settings table for what is on.
+- New dependency: `pyyaml` (for `.sklent.yaml`).
+- Viewer tokens: the token gate now also takes a read-only viewer token.
 
-- Output presets (F6): named sizes cut from a set on demand and framed on the part, stepped
-  down to each site's cap (Printables/MakerWorld 4:3 cover, Cults 800×800 ≤ 10 MB video,
-  YouTube 1280×720 ≤ 2 MB, LinkedIn and Instagram 4:5, GitHub 1280×640 ≤ 1 MB, Handshake
-  PDF ≤ 1 MB), cached under the set's `presets/`; an editable list; "Download all" zips.
-- Print and release file pack (F7, off by default): a render step exports STEP, 3MF and STL
-  from the rendered commit (per body, and no 3MF, above a body budget; hidden and excluded
-  bodies left out); packs add README, licence and a sha256 manifest and split for Etsy's
-  5 × 20 MB. Checked against SolidCraft 0.44.1.
-- Project page export (F5): a static, offline HTML folder per design or source.
-- Listing packs and text (F13): a zip per marketplace checked against its rules, with
-  `listing.md` and `pack.json`. Nothing is posted.
-- Real photo slots (F19): upload print photos (EXIF removed); they lead packs and pages; a
-  "ready to list" checklist per marketplace and a `photos n/N` tile badge.
-- Brand presets (F23, off by default): watermark (text or PNG mark), title and end cards on
-  exported copies only.
-- Kist review board (F26): a set or source as a Kist board; a share link with guest
-  proofing only when allowed in Settings and clicked. `sklent.features.outputs.share_link()`
-  hands it to other features.
-- The drawing sheet shows "no preview" for files without a picture (STEP, STL, zips), and
-  its Styles cell lists only shaded/wireframe.
-
-### Design system and UI (0.2 builder D)
+### Design pass
 
 - Kist 2.0's design system: its tokens are vendored verbatim in `sklent/web/css/kist-tokens.css`
   (Kist v2.0.0, pinned by hash; `scripts/sync_kist_tokens.py <kist checkout>` refreshes it),
@@ -111,7 +63,7 @@
 - A render set is found under the data dir even when the stored absolute path moved (a
   restored or relocated data dir).
 
-### Inputs and access (0.2 area P)
+### Inputs and access
 
 - STEP (`.step`/`.stp`), STL and 3MF files are designs: discovery finds them (settings
   `inputs_step`, `inputs_mesh`, both on; `.sklent.yaml` `formats`), skips a mesh that is the
@@ -134,10 +86,58 @@
 - Read-only viewer tokens: Settings → Tokens (and `sklent token create|list|revoke`); stored
   hashed; viewers can browse, view and download, but every write, the token list and MCP
   tools that change things are refused, and the UI hides those controls.
-- `sklent render` takes STEP/STL/3MF, `--settings JSON` and `--config`.
 - MCP: `add_class_source`, `list_class_submissions`, `review_comment`,
   `post_review_comment`, `get_design_inputs`.
-### Specs and sheets (0.2 builder S)
+- `sklent render` takes STEP/STL/3MF and, merged for every area, `--settings JSON` (any
+  render or feature setting), `--config` (a `.sklent.yaml`), `--outputs` and `--highlight`.
+
+### Revisions
+
+- **Revision history (F1).** Every rendered version of a design keeps its own render set
+  (`set.json`: the commit that made it, its message, author and date, git tags, files, Kist
+  items) instead of the newest replacing the rest. Re-rendering the same version replaces
+  only its set. Keep policy `revisions_keep` (tagged versions plus the newest 10 untagged on
+  disk; `0` keeps all); Kist is never pruned unless `revisions_prune_kist`.
+- **Kist versions.** A re-render no longer trashes the previous set's items. Every item
+  carries `rev:<commit10>` (items filed before this get theirs from their notes), and each
+  new item is linked `version_of` the item it follows and stacked with it as the cover, so
+  Kist's versions and compare work on the chain and existing Kist links keep working.
+- **Compare, filmstrip, changelog.** Two new sheets under Revisions: a slider, side by side
+  or changed-pixel view (numpy mask in the sheet's ink) of any still or the same turntable
+  frame, with the commits in between from the forge; and a filmstrip of one still per
+  version on a hairline timeline. Tile badge `N rev`; title-block Tags and Versions.
+  `GET /api/designs/{id}/sets`, `/compare`, `/changelog` and friends; MCP `list_sets`,
+  `compare_sets`, `view_compare`.
+- **Cancel keeps the old set.** A render writes into a staging folder and swaps it in once
+  finished, so cancelling (or a failure in) a forced re-render leaves the design's set as
+  it was.
+- **Build-history timelapse (F29).** Render step `timelapse` (`revisions_timelapse`, off):
+  `timeline.rollback` through the feature history, one still per step, as MP4 and GIF;
+  skipped above `revisions_timelapse_max_bodies` (100) or `_max_features` (200), with the
+  reason in the report.
+
+### Views and render modes
+
+- Quick check (F17): every render first makes one shaded iso still, guarded for colour, shown
+  on the tile and the sheet while the rest renders. `RenderOptions.outputs` (Settings →
+  Outputs, and per render on the sheet, `POST /api/designs/{id}/views/render`, MCP
+  `quick_check` / `render_outputs`) picks which of the six files to make; none is a quick
+  check alone. Frames that no chosen output needs aren't rendered.
+- Shot presets and masters (F24): half orbit onto the iso angle, push-in, top-down to iso and
+  a low angle, eased and fitted to the part; 4K H.264, ProRes 422 HQ and zipped PNG-sequence
+  masters that loop exactly, up to 60 s. Off by default.
+- Exploded still and explode animation (F4), section cut through the centre with filled
+  caps (F9), configuration stills and a same-scale lineup (F10, on when a design has
+  configurations), "my part" highlight still and turntable (F20, per design or
+  `.sklent.yaml`), motion-study clips (F22, on when a design has studies), transparent
+  stills and a path-traced studio hero (F15), and a plate view on a 10 mm grid (F16), as
+  render steps 10–48. Each records what it made or why it skipped in `report.json`
+  (`views`), shown in the sheet's **Views** section.
+- Bed-fit badge on tiles and in the title block, against a named printer bed from an
+  editable list (F16).
+- Seams: `registerTileFigure` (tiles.js) and a `checklist` field type (settings.js).
+
+### Specs and sheets
 
 - **Spec card (F2):** every render writes `spec.json` (envelope, volume, mass when a material
   is known, bodies, components, user parameters, commit, blob, licence) and a 2048×1152
@@ -156,10 +156,57 @@
 - **Assembly steps (F30, off by default):** one picture per step, new parts darker and earlier
   ones lighter, plus `assembly.md` in GitBuilding BuildUp Markdown; steps from `.sklent.yaml`
   or the order parts were placed.
-- MCP: `get_design_spec`, `get_bom`, `view_sheet`, `make_contact_sheet`. `sklent render`
-  takes `--settings JSON`.
-- The drawing sheet shows PDF, CSV and Markdown files as open/download cards; a new
-  `registerSourceAction` seam adds buttons to source rows.
+- MCP: `get_design_spec`, `get_bom`, `view_sheet`, `make_contact_sheet`.
+- A new `registerSourceAction` seam adds buttons to source rows.
+
+### Outputs and publishing
+
+- Output presets (F6): named sizes cut from a set on demand and framed on the part, stepped
+  down to each site's cap (Printables/MakerWorld 4:3 cover, Cults 800×800 ≤ 10 MB video,
+  YouTube 1280×720 ≤ 2 MB, LinkedIn and Instagram 4:5, GitHub 1280×640 ≤ 1 MB, Handshake
+  PDF ≤ 1 MB), cached under the set's `presets/`; an editable list; "Download all" zips.
+- Print and release file pack (F7, off by default): a render step exports STEP, 3MF and STL
+  from the rendered commit (per body, and no 3MF, above a body budget; hidden and excluded
+  bodies left out); packs add README, licence and a sha256 manifest and split for Etsy's
+  5 × 20 MB. Checked against SolidCraft 0.44.1.
+- Project page export (F5): a static, offline HTML folder per design or source.
+- Listing packs and text (F13): a zip per marketplace checked against its rules, with
+  `listing.md` and `pack.json`. Nothing is posted.
+- Real photo slots (F19): upload print photos (EXIF removed); they lead packs and pages; a
+  "ready to list" checklist per marketplace and a `photos n/N` tile badge.
+- Brand presets (F23, off by default): watermark (text or PNG mark), title and end cards on
+  exported copies only.
+- Kist review board (F26): a set or source as a Kist board; a share link with guest
+  proofing only when allowed in Settings and clicked. `sklent.features.outputs.share_link()`
+  hands it to other features.
+
+- The drawing sheet shows files without a picture (PDF, CSV, Markdown, STEP, STL, zips) as
+  open/download cards with no media box, gives them no 0×0 size, and its Styles cell lists
+  only shaded/wireframe.
+
+### SolidCraft 0.44.1
+
+- The image pins SolidCraft 0.44.1 (from 0.28.0). Sklent uses its `measure` (world-placed
+  body boxes, mass), `component.*`, `config.*`, `motion.*`, `explode.*`, `inspect.section`,
+  `render.start` (path-traced and transparent stills), `timeline.rollback`, `file.export`
+  and `assembly.bom` commands. Orthographic views use camera `fov: 0`.
+
+### Integration
+
+- One render path: a repo's `.sklent.yaml` overrides reach the render options, the views
+  per-render request and every step's settings; steps get the design row as
+  `settings["design"]`.
+- Framing: the turntable, stills, quick check and steps all frame the world-placed boxes of
+  every body, including the second and later placements of a component (they were framed
+  where the component was modelled, and could be cropped).
+- A quick check of a design that already has a set keeps its still beside that set
+  (`<design>/quick/`) instead of replacing the full set.
+- Pull request and branch renders file into Kist under `<design>/pr-<n>` or `<design>/@<branch>`
+  with a `ref:` tag.
+- Every MCP tool is classified read-only (annotated `readOnlyHint`) or writing; viewer tokens
+  reach only the read-only ones and only `GET` routes.
+- `sets.latest_set()` gives the real commit for sets from 0.1 (it gave the file's blob sha).
+- Cancel requests no longer outlive their job.
 
 ## 0.1.1 (2026-11-01)
 
