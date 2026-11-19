@@ -42,6 +42,33 @@
 - A render set is found under the data dir even when the stored absolute path moved (a
   restored or relocated data dir).
 
+### Inputs and access (0.2 area P)
+
+- STEP (`.step`/`.stp`), STL and 3MF files are designs: discovery finds them (settings
+  `inputs_step`, `inputs_mesh`, both on; `.sklent.yaml` `formats`), skips a mesh that is the
+  export of a `.sc` design next to it, checks each file is what its name says, and follows
+  Git LFS pointers on GitHub. Tiles show a `STEP`/`STL`/`3MF` chip.
+- Multi-file assemblies: a SolidCraft design's linked files are fetched with it at the same
+  commit, in the repo's layout, and links that changed are updated when SolidCraft opens it.
+  An assembly re-renders when a linked part changes.
+- `.sklent.yaml` per repo or folder: include/exclude globs, formats, title, licence,
+  presets, `bom.yaml` path, material, highlight bodies, assembly steps, STEP `up`, and render
+  overrides (palette, seconds, styles, feature toggles). `sklent.repo_config.get(design_id)`
+  for other features; `design.config` in the API.
+- Branch, tag, commit and pull request URLs (`/pull/<n>` on GitHub, `/pulls/<n>` on Forgejo).
+  Designs are keyed by source and ref; a PR renders the designs it changes (and the
+  assemblies that link them) and shows `PR #n`. **Copy review comment** builds before/after
+  Markdown; posting it to the PR is a setting (`inputs_review_post`), off by default.
+- Class sets: an org plus a repo prefix, a deadline (each repo renders its last commit at or
+  before it; later pushes show `after due`), and a roster showing who has no submission. A
+  **Class sets** section in the sidebar.
+- Read-only viewer tokens: Settings → Tokens (and `sklent token create|list|revoke`); stored
+  hashed; viewers can browse, view and download, but every write, the token list and MCP
+  tools that change things are refused, and the UI hides those controls.
+- `sklent render` takes STEP/STL/3MF, `--settings JSON` and `--config`.
+- MCP: `add_class_source`, `list_class_submissions`, `review_comment`,
+  `post_review_comment`, `get_design_inputs`.
+
 ## 0.1.1 (2026-11-01)
 
 - New app icon: an S inside a ring, light grey on deep grey (a matched set with Kist's K),

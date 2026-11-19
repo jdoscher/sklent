@@ -346,6 +346,8 @@ def scan(source_id: str, progress=lambda f, m: None) -> str:
         ref = source["ref"] or repo.default_branch
         key_ref = ref
         when = head = None
+        if inputs and source["ref"] and source["kind"] == "repo":
+            inputs.refs.note_default_branch(source_id, repo.default_branch)
         try:
             changed_paths: set[str] | None = None
             if pull and inputs:

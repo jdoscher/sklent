@@ -33,7 +33,26 @@ CREATE TABLE IF NOT EXISTS inputs_pulls (
     posted_at TEXT, posted_url TEXT,
     updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS inputs_source_refs (
+    source_id TEXT PRIMARY KEY,
+    default_branch TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 """
+
+
+def note_default_branch(source_id: str, branch: str) -> None:
+    """Remember a repo source's default branch, so a ref naming it isn't shown as special."""
+    with db.connect() as conn:
+        conn.execute("INSERT INTO inputs_source_refs (source_id, default_branch, updated_at) VALUES (?,?,?) "
+                     "ON CONFLICT(source_id) DO UPDATE SET default_branch = excluded.default_branch, "
+                     "updated_at = excluded.updated_at", [source_id, branch, db.now()])
+
+
+def default_branch(source_id: str) -> str | None:
+    with db.connect() as conn:
+        r = conn.execute("SELECT default_branch FROM inputs_source_refs WHERE source_id = ?", [source_id]).fetchone()
+    return r["default_branch"] if r else None
 
 
 def store_pull(source_id: str, info: dict, files: set[str] | None) -> None:
@@ -61,7 +80,7 @@ def pull_of(source_id: str) -> dict | None:
 
 def ref_info(source: dict | None) -> dict | None:
     """What the UI shows for a design's ref: None for the default branch, else
-    {kind: pull|ref|due, label, ...}."""
+    {kind: pull|ref, label, ...}."""
     if not source or not source.get("ref"):
         return None
     m = PULL_REF.match(source["ref"])
@@ -71,6 +90,9 @@ def ref_info(source: dict | None) -> dict | None:
                 "title": p.get("title") or "", "url": p.get("html_url") or "", "state": p.get("state") or "",
                 "head_ref": p.get("head_ref") or "", "base_ref": p.get("base_ref") or ""}
     ref = source["ref"]
+    default = default_branch(source["id"])
+    if ref == default or (default is None and ref in ("main", "master")):
+        return None  # the default branch, named
     return {"kind": "ref", "label": ref[:12] if len(ref) == 40 else ref}
 
 

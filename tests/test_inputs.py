@@ -469,6 +469,18 @@ def test_ref_urls(url, ref):
     assert parse_source(s.canonical_url) == s
 
 
+def test_branch_refs_show_unless_they_are_the_default(forge):
+    forge.files["r"] = {"a.sc": SC}
+    dev = jobs.add_source("https://github.com/o/r/tree/dev", auto_render=False)
+    main = jobs.add_source("https://github.com/o/r/tree/main", auto_render=False)
+    jobs.scan(dev["id"])
+    jobs.scan(main["id"])
+    by_source = {d["source_id"]: d for d in service.list_designs()}
+    assert by_source[dev["id"]]["ref_info"] == {"kind": "ref", "label": "dev"}
+    assert by_source[main["id"]]["ref_info"] is None
+    assert by_source[dev["id"]]["id"] != by_source[main["id"]]["id"]  # keyed by source + ref
+
+
 def test_pull_urls_are_forge_specific_and_prefix_urls_round_trip():
     with pytest.raises(SourceError):
         parse_source("https://github.com/o/r/pulls/1")
@@ -774,3 +786,37 @@ def test_cli_render_takes_settings_and_local_config(tmp_path, monkeypatch, capsy
 
 def test_parse_time_defaults_to_utc():
     assert parse_time("2026-11-20T23:59:00") == datetime(2026, 11, 20, 23, 59, tzinfo=UTC)
+
+
+# ---------------------------------------------------------------- web
+
+def test_inputs_web_modules_and_css_follow_the_design_rules():
+    import re
+
+    import test_tokens as tt
+    web = tt.WEB
+    features = (web / "js" / "features.js").read_text()
+    for name in ("inputs-access", "inputs-sources", "inputs-classes"):
+        js = web / "js" / "features" / f"{name}.js"
+        assert f"import './features/{name}.js';" in features
+        for names, target in re.findall(r"^import\s+\{([^}]+)\}\s+from\s+'(\.[^']+)'", js.read_text(), re.M):
+            src = (js.parent / target).resolve()
+            assert src.is_file(), f"{name} imports {target}"
+            for n in (x.strip() for x in names.split(",")):
+                exported = re.search(rf"export (async )?(function|const|let) {n}\b", src.read_text())
+                assert exported, f"{target} has no {n}"
+    css = (web / "css" / "features" / "inputs.css").read_text()
+    assert '<link rel="stylesheet" href="/static/css/features/inputs.css" />' in (web / "index.html").read_text()
+    known = tt._defined(tt.KIST.read_text()) | tt._defined(tt.SK.read_text())
+    used = set(re.findall(r"var\((--[a-z0-9-]+)", tt._strip_comments(css)))
+    assert used <= known, sorted(used - known)
+    colour = re.compile(r"#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(|\b(white|black|red|green|blue|gray|grey)\b")
+    for prop, value in tt._declarations(css):
+        assert prop.startswith("--") or not colour.search(value), (prop, value)
+    for line in css.splitlines():
+        m = re.search(r"font-size:\s*([^;]+)", line)
+        assert not m or re.fullmatch(r"var\(--(sk-)?fs-[a-z0-9-]+\)", m.group(1).strip()), line
+    blocks = re.findall(r"([^{}]+)\{", tt._strip_comments(css))
+    selectors = [x.strip() for block in blocks for x in block.split(",")]
+    ours = ("body[data-sk-role", ".sk-inputs-", ".sheet-section .sk-inputs-")
+    assert len(selectors) > 20 and [x for x in selectors if not x.startswith(ours)] == []
