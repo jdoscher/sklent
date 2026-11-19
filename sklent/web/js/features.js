@@ -9,3 +9,4 @@ import './features/inputs-sources.js';
 import './features/inputs-classes.js';
 import './features/views.js';
 import './features/specs.js';
+import './features/outputs-ui.js';

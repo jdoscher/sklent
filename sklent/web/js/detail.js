@@ -102,7 +102,8 @@ function drawViewer(d, sheets, current) {
     } else {
       const f = current.file;
       if (!/\.(png|jpe?g|gif|webp|mp4)$/i.test(f.file)) {
-        // a document (PDF, CSV, Markdown): name it and offer it; no media box, so no dimension lines
+        // a file with no picture (PDF, CSV, Markdown, STEP, STL, a zip): name it and offer it;
+        // no media box, so no dimension lines
         viewer.innerHTML = `<div class="placeholder doc">${icon('download', 20)}<span class="file-name">${esc(f.file)}</span>
           <span><a class="q" href="${esc(f.url)}" target="_blank" rel="noopener">Open</a> · <a class="q" href="${esc(f.url)}" download="${esc(f.file)}">Download</a></span></div>`;
       } else {

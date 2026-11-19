@@ -19,6 +19,7 @@ MODULES: list[str] = [
     "inputs",
     "views",
     "specs",  # S: spec card, BOM, views sheet, dimensions, contact sheet, assembly steps
+    "outputs",  # O: outputs and publishing (F5 F6 F7 F13 F19 F23 F26)
 ]
 
 _loaded: list[ModuleType] = []
