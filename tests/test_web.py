@@ -28,7 +28,7 @@ def test_every_asset_in_index_html_is_served():
 
 
 def test_module_imports_resolve():
-    for js in (WEB / "js").glob("*.js"):
+    for js in (WEB / "js").rglob("*.js"):
         for target in re.findall(r"^\s*import\s+(?:[^'\"]+\s+from\s+)?['\"](\.[^'\"]+)['\"]", js.read_text(), re.M):
             assert (js.parent / target).resolve().is_file(), f"{js.name} imports {target}"
 

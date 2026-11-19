@@ -1,0 +1,107 @@
+/* revisions.css: the Revisions sheets (F1) in the drawing sheet: Compare (slider, side by
+ * side, changes) and Filmstrip. Sheet tokens only; changes are drawn in the sheet's ink
+ * (--sk-sheet-text) through the server's mask, never in a hue. */
+
+.sk-rev { display: flex; flex-direction: column; gap: 10px; color: var(--sk-sheet-text); padding-bottom: 32px; }
+.sk-rev .dim, .sk-rev .k { color: var(--sk-sheet-dim); }
+.sk-rev-note { color: var(--sk-sheet-dim); margin: 0; padding: 4px 0; }
+
+.sk-rev-bar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; }
+.sk-rev-bar label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sk-rev-bar .k {
+  font-size: var(--fs-1); font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  font-feature-settings: 'case';
+}
+.sk-rev-bar .k b { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--sk-sheet-text); margin-left: 4px; }
+.sk-rev-bar select { max-width: 280px; }
+.sk-rev-bar .fr input { width: 180px; accent-color: var(--sk-sheet-text); }
+.sk-rev .seg { display: inline-flex; border: var(--sk-line) solid var(--sk-sheet-rule); border-radius: var(--ctl-radius); overflow: hidden; }
+.sk-rev .seg button { border: 0; border-radius: 0; background: transparent; }
+.sk-rev .seg button + button { border-left: var(--sk-line) solid var(--sk-sheet-rule); }
+.sk-rev .seg button[aria-pressed="true"] {
+  background: var(--preview-soft); color: var(--sk-sheet-text); font-weight: 600;
+  box-shadow: inset 0 0 0 var(--sk-line) var(--sk-sheet-dim);
+}
+
+.sk-rev-facts { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; align-items: baseline; }
+
+/* the stage: one pane at the media's own aspect, as big as the sheet allows */
+.sk-rev-stage { --sk-rev-rw: 16; --sk-rev-rh: 9; display: grid; gap: 12px; justify-items: center; }
+.sk-rev-stage.mode-side { grid-template-columns: 1fr 1fr; align-items: start; }
+.sk-rev-stage figure { margin: 0; min-width: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.sk-rev-stage.mode-side img { width: 100%; height: auto; display: block; }
+.sk-rev-stage .pane {
+  position: relative; width: min(100%, calc(58vh * var(--sk-rev-rw) / var(--sk-rev-rh)));
+  aspect-ratio: var(--sk-rev-rw) / var(--sk-rev-rh); overflow: hidden;
+}
+.sk-rev-stage .pane img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; user-select: none; }
+.sk-rev-stage .slider { --sk-rev-pos: 50%; touch-action: pan-y; cursor: ew-resize; }
+.sk-rev-stage .slider img.top { clip-path: inset(0 0 0 var(--sk-rev-pos)); }
+.sk-rev-stage .slider .handle {
+  position: absolute; top: 0; bottom: 0; left: var(--sk-rev-pos); width: var(--sk-line);
+  background: var(--sk-sheet-text); pointer-events: none;
+}
+.sk-rev-stage .slider .wipe {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; pointer-events: none;
+}
+.sk-rev-stage .slider .wipe:focus-visible + .handle, .sk-rev-stage .slider:focus-within .handle { outline: var(--sk-line) solid var(--preview-accent); }
+.sk-rev-stage img.faded { opacity: .28; filter: grayscale(1); }
+.sk-rev-stage .ink {
+  --sk-rev-mask: none;
+  position: absolute; inset: 0; background: var(--sk-sheet-text);
+  -webkit-mask-image: var(--sk-rev-mask); mask-image: var(--sk-rev-mask);
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%; mask-mode: alpha;
+}
+.sk-rev-stage figcaption { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; font-size: var(--fs-2); max-width: 100%; }
+.sk-rev-stage figcaption.split { justify-content: space-between; width: min(100%, calc(58vh * var(--sk-rev-rw) / var(--sk-rev-rh))); }
+.sk-rev-stage figcaption .msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+.sk-rev-tag {
+  display: inline-block; padding: 0 6px; line-height: 18px; border-radius: var(--ctl-radius);
+  border: var(--sk-line) solid var(--sk-sheet-rule); color: var(--sk-sheet-text);
+}
+
+.sk-rev-log .lbl { padding-left: 0; padding-right: 0; }
+.sk-rev-commits { list-style: none; margin: 0; padding: 0; }
+.sk-rev-commits li {
+  display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 10px; align-items: baseline;
+  padding: 4px 0; border-bottom: var(--sk-line) solid var(--sk-sheet-rule);
+}
+.sk-rev-commits .msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* the filmstrip: one still per version along a hairline timeline */
+.sk-rev-strip { list-style: none; margin: 0; padding: 0 0 8px; display: flex; overflow-x: auto; }
+.sk-rev-strip li { flex: none; width: 168px; display: flex; flex-direction: column; gap: 2px; padding: 0 6px; }
+.sk-rev-strip .frame {
+  width: 156px; height: 156px; padding: 0; display: block; overflow: hidden;
+  border: var(--sk-line) solid transparent; border-radius: 2px; background: transparent;
+}
+.sk-rev-strip .frame:not(:disabled):hover { border-color: var(--sk-sheet-dim); }
+.sk-rev-strip .frame:disabled { cursor: default; opacity: 1; }
+.sk-rev-strip .frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sk-rev-strip .frame .none { color: var(--sk-sheet-dim); font-size: var(--fs-1); }
+.sk-rev-strip .tick {
+  position: relative; display: block; height: 9px; margin: 6px -6px 2px;
+  border-top: var(--sk-line) solid var(--sk-sheet-dim);
+}
+.sk-rev-strip .tick::after {
+  content: ''; position: absolute; left: 6px; top: -5px; height: 9px; border-left: var(--sk-line) solid var(--sk-sheet-dim);
+}
+.sk-rev-strip li.current .tick::after { border-left-color: var(--sk-sheet-text); top: -8px; height: 15px; }
+.sk-rev-strip li:first-child .tick { margin-left: 0; }
+.sk-rev-strip li:last-child .tick { margin-right: 0; }
+.sk-rev-strip .sk-rev-tag { align-self: flex-start; }
+.sk-rev-strip .msg { font-size: var(--fs-1); color: var(--sk-sheet-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 760px) {
+  /* the phone's viewer is a fixed 16:11 box for media; a Revisions sheet grows instead */
+  .viewer:has(> .section-sheet.sk-rev) { aspect-ratio: auto; padding: 12px 14px 16px; }
+  .viewer > .section-sheet.sk-rev { position: static; inset: auto; overflow: visible; width: 100%; padding-bottom: 8px; }
+  .sk-rev-bar label, .sk-rev-bar select, .sk-rev-bar .fr input { width: 100%; max-width: none; }
+  .sk-rev .seg { width: 100%; }
+  .sk-rev .seg button { flex: 1; min-height: 44px; }
+  .sk-rev-stage.mode-side { grid-template-columns: 1fr; }
+  .sk-rev-stage .pane, .sk-rev-stage figcaption.split { width: 100%; }
+  .sk-rev-strip li { width: 128px; }
+  .sk-rev-strip .frame { width: 116px; height: 116px; }
+}

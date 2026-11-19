@@ -245,6 +245,24 @@ def test_keep_policy_prunes_old_untagged_sets_from_disk_only(fake, settings):
     assert sets.to_prune([{"id": "x", "tags": []}], 0) == []  # 0 keeps everything
 
 
+def test_prune_never_trashes_a_kist_item_a_kept_set_shares(fake, settings):
+    did = _three_versions(fake)
+    for s in sets.list_sets(did):  # Kist dedupes identical bytes: one item in every set
+        sets.update_meta(s["dir"], kist_items=[{"id": "same", "file": "x"}, {"id": f"own-{s['id']}", "file": "y"}])
+    with db.connect() as conn:
+        db.update(conn, "designs", did, kist_items=[{"id": "same", "file": "x"}, {"id": "own-cur", "file": "y"}])
+
+    class K:
+        trashed: list[str] = []
+
+        def trash(self, i):
+            self.trashed.append(i)
+
+    k = K()
+    assert sets.prune(did, 1, k) == [BLOB2[:12], BLOB1[:12]]
+    assert sorted(k.trashed) == [f"own-{BLOB1[:12]}", f"own-{BLOB2[:12]}"]
+
+
 def test_keep_setting_validation():
     assert jobs.set_options({"revisions_keep": "all"}) and jobs.get_all_settings()["revisions_keep"] == 0
     for bad in ({"revisions_keep": -1}, {"revisions_keep": "lots"},

@@ -161,17 +161,23 @@ def list_sets(design_id: str) -> list[dict[str, Any]]:
 
 
 def summary(d: dict) -> dict[str, Any]:
-    """Cheap facts for the design JSON: how many sets are kept and how many are tagged."""
+    """Cheap facts for the design JSON: how many sets are kept, how many are tagged, and
+    the current set's tags."""
     root = design_dir(d["id"])
+    current = Path(d["render_dir"]).name if d.get("render_dir") else None
     n = tagged = 0
+    tags: list[str] = []
     if root.is_dir():
         for p in root.iterdir():
             if p.is_dir() and p.name[:1] not in "._":
                 meta = read_json(p, META)
-                if isinstance(meta, dict) or (d.get("render_dir") and Path(d["render_dir"]).name == p.name):
+                if isinstance(meta, dict) or p.name == current:
                     n += 1
-                    tagged += bool(isinstance(meta, dict) and meta.get("tags"))
-    return {"count": n, "tagged": tagged}
+                    t = (meta or {}).get("tags") or [] if isinstance(meta, dict) else []
+                    tagged += bool(t)
+                    if p.name == current:
+                        tags = list(t)
+    return {"count": n, "tagged": tagged, "tags": tags}
 
 
 def file_path(design_id: str, set_id: str, name: str) -> Path:
@@ -279,11 +285,18 @@ def to_prune(sets_: list[dict], keep: Any) -> list[dict]:
 def prune(design_id: str, keep: Any, kist=None) -> list[str]:
     """Delete the sets the keep policy drops from disk. Their Kist items stay unless a
     Kist client is given (revisions_prune_kist), which trashes them (restorable from
-    Kist's trash). Returns the ids pruned."""
+    Kist's trash), except items a kept set shares (Kist files identical bytes once).
+    Returns the ids pruned."""
+    all_ = list_sets(design_id)
+    drop = to_prune(all_, keep)
+    dropped = {s["id"] for s in drop}
+    shared = {i["id"] for s in all_ if s["id"] not in dropped for i in s.get("kist_items") or []}
     gone = []
-    for s in to_prune(list_sets(design_id), keep):
+    for s in drop:
         if kist is not None:
             for item in s.get("kist_items") or []:
+                if item["id"] in shared:
+                    continue
                 try:
                     kist.trash(item["id"])
                 except Exception as exc:  # noqa: BLE001 - keep pruning the disk
