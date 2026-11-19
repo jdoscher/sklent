@@ -91,6 +91,7 @@ def design_out(d: dict) -> dict[str, Any]:
         "kist_folder_id": d["kist_folder_id"],
         "kist_items": d["kist_items"],
         "report": render_report(folder),
+        "spec": json.loads((folder / "spec.json").read_text()) if folder and (folder / "spec.json").is_file() else None,
     }
 
 

@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 from PIL import Image
 
-from sklent import render
+from sklent import render, steps
 from sklent.render import RenderOptions, extra_processes, render_set
 from sklent.solidcraft import SolidCraft, SolidCraftError
 
@@ -66,6 +66,7 @@ def fake(monkeypatch):
     monkeypatch.setattr(render, "SolidCraft", FakeSC)
     monkeypatch.setattr(render, "encode", lambda frames, out, *a, **k: out.write_bytes(b"mp4"))
     monkeypatch.setattr(render, "encode_gif", lambda frames, out, *a, **k: out.write_bytes(b"gif"))
+    monkeypatch.setattr(steps, "_STEPS", {})  # the render core alone, without feature steps
     return FakeSC
 
 

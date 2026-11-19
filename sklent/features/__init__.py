@@ -15,6 +15,7 @@ import importlib
 from types import ModuleType
 
 MODULES: list[str] = [
+    "specs",  # S: spec card, BOM, views sheet, dimensions, contact sheet, assembly steps
 ]
 
 _loaded: list[ModuleType] = []
