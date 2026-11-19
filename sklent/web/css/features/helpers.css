@@ -30,4 +30,6 @@
   border: var(--sk-line) solid var(--sk-rule-float); border-radius: var(--ctl-radius);
 }
 .sk-helpers-fresh .lab { grid-column: 1 / -1; }
-.sk-helpers-fresh textarea { width: 100%; resize: vertical; font-size: var(--sk-fs-data); line-height: 1.45; }
+.sk-helpers-fresh textarea {
+  width: 100%; min-height: 11.5em; resize: vertical; font-size: var(--sk-fs-data); line-height: 1.45;
+}

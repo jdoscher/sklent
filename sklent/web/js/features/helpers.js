@@ -101,7 +101,8 @@ function ago(t) {
 function envSnippet(url, name, token) {
   return [
     '# .env.helper beside docker-compose.helper.yml on the helper machine, then:',
-    '#   docker compose -f docker-compose.helper.yml up -d',
+    '#   docker compose --env-file .env.helper -f docker-compose.helper.yml up -d',
+    '# SK_HELPER_URL: this server as the helper machine reaches it',
     `SK_HELPER_URL=${url}`,
     `SK_HELPER_NAME=${name}`,
     `SK_HELPER_TOKEN=${token}`,
@@ -139,7 +140,7 @@ async function drawHelpers(el, ctx, fresh = null) {
     <p class="sk-helpers-note">A helper is another machine with SolidCraft that renders for this server: it takes every render
       (scans and filing stay here). Its token can only claim and report render jobs.</p>
     ${fresh ? `<div class="sk-helpers-fresh" role="status"><span class="lab">For ${esc(fresh.name)}, shown once: put these lines in <span class="sk-data">.env.helper</span> on the helper.</span>
-      <textarea readonly rows="8" class="sk-data" aria-label="Helper settings for ${esc(fresh.name)}">${esc(envSnippet(base, fresh.name, fresh.token))}</textarea>
+      <textarea readonly rows="9" class="sk-data" aria-label="Helper settings for ${esc(fresh.name)}">${esc(envSnippet(base, fresh.name, fresh.token))}</textarea>
       <button type="button" data-helper-copy>Copy</button></div>` : ''}
     <div class="sk-row"><span class="lab">New helper<span class="h">its name in this list, e.g. the machine’s</span></span>
       <span class="sk-val"><input type="text" data-helper-name placeholder="Name" aria-label="Helper name" maxlength="64" />

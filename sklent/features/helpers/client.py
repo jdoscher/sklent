@@ -261,7 +261,7 @@ class Helper:
             known = {f.name for f in fields(RenderOptions)}
             opts = RenderOptions(**{k: v for k, v in snapshot.items() if k in known})
             stage = tmp / "out" / claim.get("set_id", "set")
-            progress(0.0, "rendering on " + self.name)
+            progress(0.0, "inputs downloaded")
             outputs, report = render_set(local, stage, claim["stem"], opts, progress, processes=self.processes,
                                          settings=snapshot, renderer=self.renderer, host=self.name)
             try:
@@ -329,6 +329,7 @@ def _detail(r: httpx.Response) -> str:
 def main(url: str, token: str, name: str, renderer: str = "gpu", processes: int | None = None,
          once: bool = False, max_bodies: int | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)  # not a line per progress report
     h = Helper(url, token, name, renderer, processes, max_bodies)
     signal.signal(signal.SIGTERM, h.request_stop)
     signal.signal(signal.SIGINT, h.request_stop)
