@@ -91,7 +91,16 @@ def design_out(d: dict) -> dict[str, Any]:
         "kist_folder_id": d["kist_folder_id"],
         "kist_items": d["kist_items"],
         "report": render_report(folder),
+        **_inputs_extra(d),  # inputs feature: format, inputs, config, ref_info, due
     }
+
+
+def _inputs_extra(d: dict) -> dict[str, Any]:
+    try:
+        from .features.inputs import design_extra
+    except ImportError:
+        return {}
+    return design_extra(d)
 
 
 def source_out(s: dict, counts: dict[str, dict[str, int]]) -> dict[str, Any]:

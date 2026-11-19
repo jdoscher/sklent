@@ -23,14 +23,17 @@ from .render import RenderOptions, render_set
 from .solidcraft import kill_all
 from .sources import (
     DEFAULT_EXCLUDE,
+    PULL_REF,
     Forge,
     SourceError,
     SourceSpec,
+    drop_mesh_exports,
     excluded,
     in_scope,
     is_design_path,
     looks_like_design,
     parse_source,
+    parse_time,
 )
 
 log = logging.getLogger("sklent")
@@ -70,16 +73,29 @@ def _saved() -> dict[str, Any]:
     return json.loads(r["value"]) if r else {}
 
 
-def get_options() -> RenderOptions:
-    saved = _saved()
+def _repo_overrides(design_id: str | None) -> dict[str, Any]:
+    """A design's render settings from its repo's `.sklent.yaml` (validated there)."""
+    if not design_id:
+        return {}
+    try:
+        from .repo_config import render_overrides
+    except ImportError:
+        return {}
+    return render_overrides(design_id)
+
+
+def get_options(design_id: str | None = None) -> RenderOptions:
+    """The render options; with a design id, its repo config's overrides applied."""
+    saved = {**_saved(), **_repo_overrides(design_id)}
     known = {f.name for f in fields(RenderOptions)}
     return RenderOptions(**{k: v for k, v in saved.items() if k in known})
 
 
-def get_all_settings() -> dict[str, Any]:
-    """RenderOptions plus every registered feature setting (defaults filled in)."""
-    saved = _saved()
-    out = asdict(get_options())
+def get_all_settings(design_id: str | None = None) -> dict[str, Any]:
+    """RenderOptions plus every registered feature setting (defaults filled in); with a
+    design id, its repo config's overrides applied."""
+    saved = {**_saved(), **_repo_overrides(design_id)}
+    out = asdict(get_options(design_id))
     for key, (default, _) in _EXTRA.items():
         out[key] = saved.get(key, default)
     return out
@@ -293,55 +309,131 @@ def scheduler_loop(stop: threading.Event) -> None:
 
 # ---------------------------------------------------------------- scan
 
+def _scan_inputs():
+    """The inputs feature (repo config, links, PRs, class sets), or None without it."""
+    try:
+        from .features import inputs
+    except ImportError:
+        return None
+    return inputs
+
+
 def scan(source_id: str, progress=lambda f, m: None) -> str:
+    """Find a source's designs at its ref (or at its deadline), note what changed, and
+    queue renders when the source auto-renders."""
     source = get_source(source_id)
     forge = Forge(source["provider"], source["host"])
+    inputs = _scan_inputs()
     errors: list[str] = []
+    notes: list[str] = []
+    opts = inputs.classes.options(source_id) if inputs else {}
+    deadline = parse_time(opts["deadline"]) if opts.get("deadline") else None
+    prefix = inputs.classes.prefix_of(source) if inputs else None
     if source["kind"] == "account":
         repos = [r for r in forge.list_repos(source["owner"]) if not r.fork and not r.archived]
+        if prefix:
+            repos = [r for r in repos if r.name.lower().startswith(prefix.lower())]
     else:
         repos = [forge.repo_info(source["owner"], source["repo"])]
+    pull = PULL_REF.match(source["ref"] or "")
+    settings = get_all_settings()
+    formats = inputs.formats_from_settings(settings) if inputs else None
     seen: set[str] = set()
+    submissions: set[tuple[str, str]] = set()
     found = changed = 0
     for i, repo in enumerate(repos):
         progress(i / max(1, len(repos)), f"scanning {repo.owner}/{repo.name}")
+        ref = source["ref"] or repo.default_branch
+        key_ref = ref
+        when = head = None
         try:
-            ref = source["ref"] or repo.default_branch
-            sha = forge.resolve(repo.owner, repo.name, ref)
-            files = [f for f in forge.tree(repo.owner, repo.name, sha)
-                     if is_design_path(f.path) and in_scope(f.path, source["path"])
-                     and not excluded(f.path, source["exclude"], source["path"])]
+            changed_paths: set[str] | None = None
+            if pull and inputs:
+                info = forge.pull(repo.owner, repo.name, int(pull.group(1)))
+                sha = info["head_sha"]
+                try:
+                    changed_paths = set(forge.pull_files(repo.owner, repo.name, info["number"]))
+                except SourceError as exc:
+                    notes.append(f"couldn't list the pull request's files ({exc}); every design renders")
+                inputs.refs.store_pull(source_id, info, changed_paths)
+            elif deadline:
+                head = forge.resolve(repo.owner, repo.name, ref)
+                hit = forge.commit_before(repo.owner, repo.name, ref, deadline)
+                key_ref = inputs.classes.due_ref(ref, opts["deadline"]) if inputs else ref
+                submissions.add((repo.owner, repo.name))
+                if hit is None:
+                    if inputs:
+                        inputs.classes.record(source_id, repo.owner, repo.name, None, None, head, 0)
+                    continue
+                sha, when = hit
+            else:
+                sha = forge.resolve(repo.owner, repo.name, ref)
+            tree = forge.tree(repo.owner, repo.name, sha)
+            configs = (inputs.repo_config.load(forge, source["host"], repo.owner, repo.name, sha, tree)
+                       if inputs else {})
+            exports = drop_mesh_exports([f.path for f in tree])
+            files = []
+            for f in tree:
+                if not (is_design_path(f.path) and in_scope(f.path, source["path"])
+                        and not excluded(f.path, source["exclude"], source["path"])):
+                    continue
+                cfg = inputs.repo_config.resolve(f.path, configs) if configs else {}
+                chosen = f.path == source["path"]  # a source naming one file renders it as it is
+                if not chosen:
+                    if not is_design_path(f.path, cfg.get("formats") or formats) or f.path in exports:
+                        continue
+                    if cfg and not cfg["included"]:
+                        continue
+                files.append((f, cfg))
+            if changed_paths is not None:
+                files = [(f, cfg) for f, cfg in files if f.path in changed_paths or inputs.links.depends_on(
+                    source["host"], repo.owner, repo.name, f.path, changed_paths)]
+            for cpath, c in configs.items():
+                notes += [f"{repo.name}/{cpath}: {e}" for e in c.get("errors") or []]
         except (SourceError, OSError) as exc:
             errors.append(f"{repo.owner}/{repo.name}: {exc}")
             continue
+        tree_shas = {f.path: f.sha for f in tree}
+        later: list[tuple[str, dict]] = []
         with db.connect() as conn:
-            for f in files:
+            for f, cfg in files:
                 found += 1
-                # One row per design even when sources overlap (an account and one of its
-                # repos): the source that scanned it last owns it, so it renders once.
+                # One row per design and ref even when sources overlap (an account and one of
+                # its repos): the source that scanned it last owns it, so it renders once.
                 existing = conn.execute(
                     "SELECT d.* FROM designs d JOIN sources s ON s.id = d.source_id WHERE s.host = ?"
-                    " AND d.owner = ? AND d.repo = ? AND d.path = ?",
-                    [source["host"], repo.owner, repo.name, f.path]).fetchone()
+                    " AND d.owner = ? AND d.repo = ? AND d.path = ? AND d.ref = ?",
+                    [source["host"], repo.owner, repo.name, f.path, key_ref]).fetchone()
                 url = forge.blob_url(repo.owner, repo.name, sha, f.path)
                 if existing is None:
                     did = db.new_id()
                     conn.execute(
                         "INSERT INTO designs (id, source_id, owner, repo, ref, path, html_url, blob_sha,"
                         " commit_sha, size, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                        [did, source_id, repo.owner, repo.name, ref, f.path, url, f.sha, sha, f.size,
+                        [did, source_id, repo.owner, repo.name, key_ref, f.path, url, f.sha, sha, f.size,
                          db.now()])
                     changed += 1
                 else:
                     did = existing["id"]
-                    new_blob = existing["blob_sha"] != f.sha
+                    blob = inputs.links.scan_blob(did, f.sha, tree_shas) if inputs else f.sha
+                    if inputs:
+                        inputs.links.note_scan(conn, did, f.sha)
+                    new_blob = existing["blob_sha"] != blob
                     changed += new_blob
                     status = existing["status"]
                     if new_blob or status == "removed":
-                        status = "rendered" if existing["rendered_sha"] == f.sha else "new"
-                    db.update(conn, "designs", did, source_id=source_id, ref=ref, html_url=url, blob_sha=f.sha,
+                        status = "rendered" if existing["rendered_sha"] == blob else "new"
+                    db.update(conn, "designs", did, source_id=source_id, ref=key_ref, html_url=url, blob_sha=blob,
                               commit_sha=sha, size=f.size, status=status, updated_at=db.now())
                 seen.add(did)
+                later.append((did, cfg))
+        if inputs:
+            for did, cfg in later:
+                inputs.repo_config.store(did, {k: v for k, v in cfg.items() if k != "included"}, sha)
+            if deadline:
+                inputs.classes.record(source_id, repo.owner, repo.name, sha, when, head, len(files))
+    if inputs and deadline and not errors:
+        inputs.classes.forget_others(source_id, submissions)
     with db.connect() as conn:
         for r in conn.execute("SELECT id FROM designs WHERE source_id = ? AND status != 'removed'",
                               [source_id]).fetchall():
@@ -359,6 +451,9 @@ def scan(source_id: str, progress=lambda f, m: None) -> str:
     msg = f"{len(repos)} repo(s), {found} design(s), {changed} new or changed, {queued} queued"
     if errors:
         msg += f"; {len(errors)} repo error(s)"
+    if notes:
+        uniq = list(dict.fromkeys(notes))
+        msg += f"; {len(uniq)} note(s): " + "; ".join(uniq[:5])[:1500]
     return msg
 
 
@@ -382,7 +477,8 @@ def render(design_id: str, force: bool = False, progress=lambda f, m: None) -> s
         result = _render(settings, source, design, progress)
     except Exception as exc:
         if _cancel_requested():
-            _undo_cancelled_render(design)
+            # the inputs step may have re-keyed the design (linked files): clean up that set
+            _undo_cancelled_render({**design, "blob_sha": get_design(design_id)["blob_sha"]})
             raise JobCancelled(f"render of {design['path']} was cancelled") from exc
         with db.connect() as conn:
             db.update(conn, "designs", design_id, status="failed", error=str(exc)[:2000],
@@ -411,24 +507,31 @@ def _undo_cancelled_render(design: dict) -> None:
 def _render(settings, source: dict, design: dict, progress) -> str:
     forge = Forge(source["provider"], source["host"])
     progress(0.0, "downloading design")
-    data = forge.fetch(design["owner"], design["repo"], design["commit_sha"], design["path"],
-                       settings.max_design_mb * 2**20)
-    if not looks_like_design(data):
-        raise SourceError(f"{design['path']} is not a SolidCraft design")
     work = settings.work_dir / design["id"]
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True)
     filename = design["path"].rsplit("/", 1)[-1]
-    local = work / filename
-    local.write_bytes(data)
+    inputs = _scan_inputs()
+    if inputs:  # the design plus the files it links, in the repo's layout (F3, F14)
+        local, design = inputs.links.fetch_design(forge, settings, design, work, progress,
+                                                  inputs.repo_config.get(design["id"]), looks_like_design)
+    else:
+        data = forge.fetch(design["owner"], design["repo"], design["commit_sha"], design["path"],
+                           settings.max_design_mb * 2**20)
+        if not looks_like_design(data, design["path"]):
+            raise SourceError(f"{design['path']} is not a SolidCraft design")
+        local = work / filename
+        local.write_bytes(data)
 
     stem = slug(filename.rsplit(".", 1)[0])
     out_dir = settings.renders_dir / design["id"] / design["blob_sha"][:12]
     shutil.rmtree(out_dir, ignore_errors=True)
-    opts = get_options()
+    opts = get_options(design["id"])
     outputs, report = render_set(local, out_dir, stem, opts,
                                  lambda f, m: progress(0.02 + 0.88 * f, m),
-                                 settings=get_all_settings())
+                                 settings=get_all_settings(design["id"]))
+    if inputs:
+        report["inputs"] = inputs.links.report_for(local)
     (out_dir / "report.json").write_text(json.dumps(report, indent=2))
     shutil.rmtree(work, ignore_errors=True)
 

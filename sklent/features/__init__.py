@@ -15,6 +15,7 @@ import importlib
 from types import ModuleType
 
 MODULES: list[str] = [
+    "inputs",
 ]
 
 _loaded: list[ModuleType] = []
