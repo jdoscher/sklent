@@ -32,7 +32,7 @@ def _declarations(css: str):
 
 
 def _area_css() -> dict[str, str]:
-    return {p.name: p.read_text() for p in sorted(CSS.glob("*.css")) if p.name not in TOKEN_FILES}
+    return {str(p.relative_to(CSS)): p.read_text() for p in sorted(CSS.rglob("*.css")) if p.name not in TOKEN_FILES}
 
 
 def test_vendored_kist_tokens_match_the_pinned_hash():

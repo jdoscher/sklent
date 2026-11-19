@@ -384,6 +384,8 @@ def render(design_id: str, force: bool = False, progress=lambda f, m: None) -> s
         if _cancel_requested():
             _undo_cancelled_render(design)
             raise JobCancelled(f"render of {design['path']} was cancelled") from exc
+        from . import sets
+        sets.discard(sets.staging_dir(design_id, sets.set_id_for(design["blob_sha"])))
         with db.connect() as conn:
             db.update(conn, "designs", design_id, status="failed", error=str(exc)[:2000],
                       updated_at=db.now())
@@ -392,15 +394,16 @@ def render(design_id: str, force: bool = False, progress=lambda f, m: None) -> s
 
 
 def _undo_cancelled_render(design: dict) -> None:
-    """Drop a cancelled render's partial set and put the design back as it was. A forced
-    re-render of an unchanged file writes into the same folder as the previous set, which
-    is cleared when the render starts, so that set is gone too."""
+    """Drop a cancelled render's partial set and put the design back as it was. A render
+    writes into a staging folder and only replaces the set of the same version once it
+    has finished, so a cancelled forced re-render leaves the previous set in place."""
+    from . import sets
+
     settings = get_settings()
-    out_dir = settings.renders_dir / design["id"] / design["blob_sha"][:12]
-    shutil.rmtree(out_dir, ignore_errors=True)
+    sets.discard(sets.staging_dir(design["id"], sets.set_id_for(design["blob_sha"])))
     shutil.rmtree(settings.work_dir / design["id"], ignore_errors=True)
     fields_: dict[str, Any] = {"updated_at": db.now(), "error": design["error"]}
-    if design["render_dir"] and Path(design["render_dir"]).name == out_dir.name:
+    if design["render_dir"] and not Path(design["render_dir"]).is_dir() and sets.latest_set(design["id"]) is None:
         fields_.update(render_dir=None, files=[], rendered_sha=None)
         design = {**design, "render_dir": None, "files": []}
     fields_["status"] = _status_without_job(design)
@@ -409,6 +412,11 @@ def _undo_cancelled_render(design: dict) -> None:
 
 
 def _render(settings, source: dict, design: dict, progress) -> str:
+    """Render the design's current version into its own set (F1: one set per version,
+    older sets kept), file it into Kist as new versions of the previous set's items, then
+    apply the keep policy."""
+    from . import sets
+
     forge = Forge(source["provider"], source["host"])
     progress(0.0, "downloading design")
     data = forge.fetch(design["owner"], design["repo"], design["commit_sha"], design["path"],
@@ -423,45 +431,115 @@ def _render(settings, source: dict, design: dict, progress) -> str:
     local.write_bytes(data)
 
     stem = slug(filename.rsplit(".", 1)[0])
-    out_dir = settings.renders_dir / design["id"] / design["blob_sha"][:12]
-    shutil.rmtree(out_dir, ignore_errors=True)
+    set_id = sets.set_id_for(design["blob_sha"])
+    out_dir = settings.renders_dir / design["id"] / set_id
+    # Written aside and swapped in when done, so a failed or cancelled re-render of the
+    # same version never leaves the design without its set.
+    stage = sets.staging_dir(design["id"], set_id)
+    sets.discard(stage)
     opts = get_options()
-    outputs, report = render_set(local, out_dir, stem, opts,
-                                 lambda f, m: progress(0.02 + 0.88 * f, m),
-                                 settings=get_all_settings())
-    (out_dir / "report.json").write_text(json.dumps(report, indent=2))
+    all_settings = get_all_settings()
+    outputs, report = render_set(local, stage, stem, opts,
+                                 lambda f, m: progress(0.02 + 0.86 * f, m),
+                                 settings=all_settings)
+    (stage / "report.json").write_text(json.dumps(report, indent=2))
     shutil.rmtree(work, ignore_errors=True)
+
+    # The set's labels: the commit that made this version of the file, and git tags.
+    commit = sets.commit_info(forge, design["owner"], design["repo"], design["commit_sha"], design["path"])
+    commit_sha = (commit or {}).get("sha") or design["commit_sha"]
+    previous = sets.ensure_meta(design)  # the set shown until now (before F1: no set.json)
+    meta: dict[str, Any] = {
+        "id": set_id, "design_id": design["id"], "blob_sha": design["blob_sha"],
+        "commit_sha": commit_sha, "head_sha": design["commit_sha"], "ref": design["ref"],
+        "path": design["path"], "rendered_at": db.now(), "files": [asdict(o) for o in outputs],
+        "commit": commit, "tags": [], "palette": opts.palette,
+        "kist_folder_id": design["kist_folder_id"], "kist_items": [],
+    }
 
     kist = Kist()
     folder_id, items = design["kist_folder_id"], []
+    kist_notes: list[str] = []
     if kist.enabled:
-        progress(0.92, "filing into Kist")
+        progress(0.9, "filing into Kist")
         folder_id = kist.ensure_folder([settings.kist_root_folder, design["owner"], design["repo"], stem])
         base_tags = ["solidcraft", f"repo:{design['owner']}/{design['repo']}", f"design:{stem}",
-                     f"palette:{opts.palette}"]
+                     f"palette:{opts.palette}", f"rev:{commit_sha[:10]}"]
         notes = (f"{design['owner']}/{design['repo']}:{design['path']} at "
-                 f"{design['commit_sha'][:10]}, rendered by sklent")
+                 f"{commit_sha[:10]}, rendered by sklent")
+        before = {(i.get("style"), i.get("variant")): i["id"] for i in (previous or {}).get("kist_items") or []}
+        by_file = {f["file"]: f for f in (previous or {}).get("files") or []}
+        for i in (previous or {}).get("kist_items") or []:  # items from before F1 carry no style
+            f = by_file.get(i.get("file"))
+            if f and (f["style"], f["variant"]) not in before:
+                before[(f["style"], f["variant"])] = i["id"]
+        _tag_legacy_items(kist, previous, kist_notes)
         for o in outputs:
-            item = kist.upload(out_dir / o.file, folder_id=folder_id,
+            item = kist.upload(stage / o.file, folder_id=folder_id,
                                tags=[*base_tags, f"style:{o.style}", f"format:{o.variant}"],
                                notes=notes, source_url=design["html_url"])
-            items.append({"id": item["id"], "file": o.file})
-        new_ids = {i["id"] for i in items}
-        for old in design["kist_items"]:
-            if old["id"] not in new_ids:
-                kist.trash(old["id"])
+            items.append({"id": item["id"], "file": o.file, "style": o.style, "variant": o.variant})
+            old = before.get((o.style, o.variant))
+            if old and old != item["id"]:
+                try:
+                    kist.file_version(item["id"], old)
+                except Exception as exc:  # noqa: BLE001 - the item is filed; the link is a bonus
+                    kist_notes.append(f"version link {o.file}: {exc}"[:200])
+        meta.update(kist_folder_id=folder_id, kist_items=items)
+    if kist_notes:
+        report["kist"] = kist_notes
+        (stage / "report.json").write_text(json.dumps(report, indent=2))
 
-    # keep only the newest set on disk
-    for old in (settings.renders_dir / design["id"]).iterdir():
-        if old != out_dir and old.is_dir():
-            shutil.rmtree(old, ignore_errors=True)
-
+    sets.write_meta(stage, meta)
+    progress(0.97, "keeping the set")
+    if _cancel_requested():
+        raise JobCancelled(f"render of {design['path']} was cancelled")
+    sets.promote(stage, out_dir)
     with db.connect() as conn:
         db.update(conn, "designs", design["id"], status="rendered", rendered_sha=design["blob_sha"],
-                  rendered_at=db.now(), render_dir=str(out_dir), files=[asdict(o) for o in outputs],
+                  rendered_at=meta["rendered_at"], render_dir=str(out_dir), files=meta["files"],
                   kist_folder_id=folder_id, kist_items=items, error=None, updated_at=db.now())
+
+    # Labels and the keep policy never fail a finished render.
+    try:
+        sets.refresh_tags(forge, {**design, "kist_items": items})
+    except Exception as exc:  # noqa: BLE001
+        log.info("tags for %s: %s", design["path"], exc)
+    pruned: list[str] = []
+    try:
+        pruned = sets.prune(design["id"], all_settings.get("revisions_keep", 10),
+                            kist if kist.enabled and all_settings.get("revisions_prune_kist") else None)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("keep policy for %s: %s", design["path"], exc)
     where = f" and filed {len(items)} in Kist" if items else ""
-    return f"rendered {plural(len(outputs), 'file')} ({plural(report['bodies'], 'body', 'bodies')}){where}"
+    tail = f"; pruned {plural(len(pruned), 'older set')}" if pruned else ""
+    return f"rendered {plural(len(outputs), 'file')} ({plural(report['bodies'], 'body', 'bodies')}){where}{tail}"
+
+
+def _tag_legacy_items(kist: Kist, previous: dict | None, notes: list[str]) -> None:
+    """Items filed before revisions have no `rev:` tag; give them the commit their notes
+    name, so every item carries one, and record it on their set."""
+    if not previous or previous.get("commit_sha") and not previous.get("legacy"):
+        return
+    items = previous.get("kist_items") or []
+    if not items:
+        return
+    try:
+        commit = previous.get("commit_sha") or kist.commit_of(items[0]["id"])
+        if not commit:
+            return
+        for i in items:
+            kist.add_tags(i["id"], [f"rev:{commit[:10]}"])
+        from . import sets
+        folder = get_settings().renders_dir / previous["design_id"] / previous["id"]
+        if folder.is_dir():
+            meta = sets.read_json(folder, sets.META) or {}
+            if not meta.get("commit_sha") or len(meta["commit_sha"]) < 40:
+                sets.update_meta(folder, commit_sha=meta.get("commit_sha") or commit, legacy=False)
+            else:
+                sets.update_meta(folder, legacy=False)
+    except Exception as exc:  # noqa: BLE001
+        notes.append(f"rev tag on older items: {exc}"[:200])
 
 
 def plural(n: int, one: str, many: str | None = None) -> str:

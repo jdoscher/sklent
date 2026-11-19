@@ -21,8 +21,43 @@ that still carries colour (per-face paint, imported STEP colours).
 
 In Kist, each set lands in `SolidCraft/<owner>/<repo>/<design>`, tagged `solidcraft`,
 `repo:<owner>/<repo>`, `design:<name>`, `style:<shaded|wireframe>`, `format:<variant>` and
-`palette:<name>`, with the file's URL at the rendered commit as its source. Re-rendering
-trashes the previous set's items (restorable from Kist's trash).
+`palette:<name>` and `rev:<commit10>` (the commit that made that version of the file), with
+the file's URL at the rendered commit as its source. A new version never trashes the
+previous one's items: each new item is linked `version_of` the item it follows and stacked
+with it as the cover, so Kist's versions list and compare work on the chain and links to
+older items keep working (see **Revisions**).
+
+## Revisions
+
+Every rendered version of a design keeps its own render set (one per blob: a commit that
+didn't change the file has nothing new to render), labelled with the commit that made it
+(message, author, date, from the forge) and any git tags whose tree holds it. Re-rendering
+the same version (Re-render, `force`) replaces only that version's set, and only once the new
+one has finished: a cancelled or failed re-render leaves the old set in place.
+
+- **Keep policy:** every tagged version stays; of the untagged ones, the newest
+  `revisions_keep` (default 10; `0` keeps all) stay on disk and older ones are pruned. Pruning
+  never touches Kist unless `revisions_prune_kist` is on (default off), which trashes the
+  pruned versions' items (restorable from Kist's trash).
+- **Compare** (a sheet in the drawing sheet, under Revisions): two versions as a slider, side
+  by side, or **Changes**: the pixels that differ, drawn in the sheet's ink over a faded copy
+  of the newer one (numpy, from the matching stills; never a hue). It works on any still, or
+  on the same frame of any turntable. Each version's stills are framed to its own envelope,
+  so when the envelope changed the compare says part of the difference is framing. Below it,
+  the commits that changed the file in between, from the forge API.
+- **Filmstrip:** one still per kept version along a hairline timeline, with mono commit and
+  date and any tags; choosing one compares it with the current version.
+- Tiles show `N rev` when more than one version is kept.
+
+### Build-history timelapse
+
+With `revisions_timelapse` on (default off), each render also makes
+`<design>-timelapse-1080p.mp4` and `<design>-timelapse.gif`: the part building itself feature
+by feature (`timeline.rollback` through the history, one still per step from a fixed iso
+camera, then a hold on the finished part). Nothing is drawn on the frames. Every step is a
+rebuild, so designs over `revisions_timelapse_max_bodies` (100) bodies or
+`revisions_timelapse_max_features` (200) features are skipped, with the reason in the set's
+`report.json` (`timelapse.skipped`).
 
 ## How it works
 
@@ -71,6 +106,8 @@ A design that is only on disk can be rendered without the app:
 docker compose run --rm app sklent render /data/some.sc /data/out --palette white
 ```
 
+`--settings '{"revisions_timelapse": true}'` passes feature settings to that render.
+
 ### Configuration (`.env`)
 
 | variable | default | |
@@ -87,7 +124,16 @@ docker compose run --rm app sklent render /data/some.sc /data/out --palette whit
 | `SK_RENDER_GID` | `992` | Group owning `/dev/dri/renderD128` on the host |
 
 Render settings (palette, length, frame rate, camera pitch, still and GIF sizes, styles)
-are in the UI's **Settings** and the MCP `set_render_settings` tool.
+are in the UI's **Settings** and the MCP `set_render_settings` tool. Feature settings are in
+the same Settings sheet and `GET/PUT /api/settings`:
+
+| setting | default | |
+|---|---|---|
+| `revisions_keep` | `10` | Untagged versions kept on disk besides every tagged one; `0` keeps all |
+| `revisions_prune_kist` | off | Also trash pruned versions' Kist items (off keeps every Kist link working) |
+| `revisions_timelapse` | off | Build-history timelapse MP4 and GIF |
+| `revisions_timelapse_max_features` | `200` | Skip the timelapse above this many features |
+| `revisions_timelapse_max_bodies` | `100` | Skip the timelapse above this many bodies |
 
 ## MCP
 
@@ -107,6 +153,9 @@ claude mcp add --transport http sklent http://<host>:8090/mcp \
 | `view_render` | See a still (image content) |
 | `add_source`, `list_sources`, `scan_source`, `list_designs`, `render_design` | Finer control |
 | `get_render_settings`, `set_render_settings` | Palette, length, sizes |
+| `list_sets` | Every kept version of a design: commit, message, tags, files |
+| `compare_sets` | Pixel compare of two versions (changed share, bounding box, mask and composite URLs) plus the commits in between |
+| `view_compare` | See a compare as one picture: older, newer, changes (image content) |
 
 With Kist's own MCP connected as well, an agent can go on to browse, view and tag the
 filed sets there.
@@ -120,7 +169,14 @@ see `sklent/api.py`.
 Each design carries `blob` (its file's git blob SHA, the sheet's revision) and `report`:
 `{bodies, hidden_bodies, bounds_mm, palette, frame_ms, processes, timings_s}` from its newest
 render set's `report.json` (`bounds_mm` is `[[x, y, z] min, [x, y, z] max]`; `palette` is the
-one that set was rendered with), or `null` before the first render.
+one that set was rendered with), or `null` before the first render, and `revisions`:
+`{count, tagged, tags}` (kept versions, how many are tagged, the current version's tags).
+
+Revisions: `GET /api/designs/{id}/sets` (newest first), `/sets/{set}`,
+`/sets/{set}/files/{name}`, `/compare?a=&b=&style=&variant=&frame=` (a older, b newer;
+defaults: the current version against the one before), `/compare/diff.png` (alpha mask of the
+changed pixels), `/compare/frame.png?set=&variant=&frame=`, `/compare/composite.png`, and
+`/changelog?base=&head=`.
 
 ## Limits
 
