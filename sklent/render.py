@@ -23,6 +23,7 @@ import queue
 import re
 import shutil
 import subprocess
+import sys
 import threading
 import time
 import zipfile
@@ -382,22 +383,58 @@ def _chunks(frames: list[_Frame], size: int) -> list[list[_Frame]]:
 
 
 def _rss_bytes(pid: int) -> int | None:
+    """A process's memory: VmRSS on Linux, the physical footprint on macOS (what Activity
+    Monitor shows; RSS undercounts GPU-backed memory there). None when unknown."""
     try:
         for line in Path(f"/proc/{pid}/status").read_text().splitlines():
             if line.startswith("VmRSS:"):
                 return int(line.split()[1]) * 1024
     except OSError:
         pass
+    if sys.platform == "darwin":
+        return _darwin_footprint(pid)
     return None
 
 
+def _darwin_footprint(pid: int) -> int | None:
+    try:
+        import ctypes
+
+        class _RUsageV2(ctypes.Structure):  # struct rusage_info_v2 (sys/resource.h)
+            _fields_ = [("uuid", ctypes.c_uint8 * 16)] + [(n, ctypes.c_uint64) for n in (
+                "user_time", "system_time", "pkg_idle_wkups", "interrupt_wkups", "pageins",
+                "wired_size", "resident_size", "phys_footprint", "proc_start_abstime",
+                "proc_exit_abstime", "child_user_time", "child_system_time",
+                "child_pkg_idle_wkups", "child_interrupt_wkups", "child_pageins",
+                "child_elapsed_abstime", "diskio_bytesread", "diskio_byteswritten")]
+
+        lib = ctypes.CDLL("/usr/lib/libproc.dylib")
+        info = _RUsageV2()
+        if lib.proc_pid_rusage(int(pid), 2, ctypes.byref(info)) != 0:
+            return None
+        return int(info.phys_footprint) or None
+    except (OSError, AttributeError, ValueError):
+        return None
+
+
 def _mem_available() -> int | None:
+    """Memory a new process can use: MemAvailable on Linux; on macOS the kernel's
+    memorystatus level (percent of RAM free) times RAM. None when unknown."""
     try:
         for line in Path("/proc/meminfo").read_text().splitlines():
             if line.startswith("MemAvailable:"):
                 return int(line.split()[1]) * 1024
     except OSError:
         pass
+    if sys.platform == "darwin":
+        try:
+            def sysctl(name: str) -> int:
+                out = subprocess.run(["/usr/sbin/sysctl", "-n", name], capture_output=True,
+                                     text=True, timeout=5, check=True).stdout
+                return int(out.strip())
+            return sysctl("hw.memsize") * sysctl("kern.memorystatus_level") // 100
+        except (OSError, ValueError, subprocess.SubprocessError):
+            return None
     return None
 
 
@@ -411,9 +448,9 @@ def extra_processes(wanted: int, frame_ms: float, frames_left: int, load_s: floa
         return 0
     if frames_left * frame_ms / 1000 < LOAD_PAYBACK * load_s:
         return 0
-    extra = wanted - 1
-    if rss and available:
-        extra = min(extra, int(available * MEMORY_SHARE // rss))
+    if not rss or not available:
+        return 0  # memory unknown: one process, never a guess (a Mac once swapped 7 GB this way)
+    extra = min(wanted - 1, int(available * MEMORY_SHARE // rss))
     return max(0, extra)
 
 

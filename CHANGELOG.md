@@ -5,6 +5,10 @@
 GPU control and render helpers: a shared NAS GPU stays usable, and other machines can take
 the renders.
 
+- Memory guard for parallel frames works on macOS too (physical footprint and the kernel's
+  free-memory level), and when free memory can't be measured Sklent renders with one
+  process instead of guessing.
+
 ### Upgrading from 0.2.0
 
 - Rebuild the image (`docker compose up -d --build`). The database gains `jobs.helper`,

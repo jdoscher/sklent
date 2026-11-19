@@ -97,6 +97,8 @@ def test_small_design_stays_in_one_process(tmp_path, fake):
 
 def test_slow_design_fans_out(tmp_path, fake, monkeypatch):
     monkeypatch.setattr(render, "FAN_OUT_MS", 1)
+    monkeypatch.setattr(render, "_rss_bytes", lambda pid: GB)
+    monkeypatch.setattr(render, "_mem_available", lambda: 64 * GB)
     fake.frame_s = 0.004
     outputs, report = render_set(Path("d.sc"), tmp_path, "d", RenderOptions(**OPTS), processes=3)
     assert report["processes"] == 3 and len(fake.instances) == 3
@@ -108,6 +110,8 @@ def test_slow_design_fans_out(tmp_path, fake, monkeypatch):
 
 def test_a_failing_worker_fails_the_set_and_stops_the_rest(tmp_path, fake, monkeypatch):
     monkeypatch.setattr(render, "FAN_OUT_MS", 1)
+    monkeypatch.setattr(render, "_rss_bytes", lambda pid: GB)
+    monkeypatch.setattr(render, "_mem_available", lambda: 64 * GB)
     fake.frame_s = 0.004
     fake.fail_on = (2, 3)
     with pytest.raises(SolidCraftError, match="worker 2 broke"):
@@ -119,7 +123,8 @@ def test_a_failing_worker_fails_the_set_and_stops_the_rest(tmp_path, fake, monke
 @pytest.mark.parametrize("args, expect", [
     ((4, 15, 900, 1, None, None), 0),  # fast frames: one process
     ((1, 550, 900, 125, None, None), 0),  # SK_RENDER_PROCESSES=1
-    ((4, 550, 900, 125, None, None), 3),  # SELENE-like, memory unknown
+    ((4, 550, 900, 125, None, None), 0),  # SELENE-like, memory unknown: never guess
+    ((4, 550, 900, 125, int(1 * GB), 64 * GB), 3),  # plenty of memory: all of them
     ((4, 550, 900, 125, int(6.7 * GB), 20 * GB), 2),  # memory holds two more
     ((4, 550, 900, 125, int(6.7 * GB), 5 * GB), 0),  # memory holds none
     ((4, 60, 900, 125, None, None), 0),  # 54 s of frames left: done before a load (125 s)
