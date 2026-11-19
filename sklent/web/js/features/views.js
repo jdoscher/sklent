@@ -220,7 +220,7 @@ registerDetailSection({
       const notes = v.notes || {};
       const rows = Object.entries(notes).map(([k, n]) => {
         const what = n.skipped ? `skipped: ${n.skipped}` : [n.plane, n.method, n.source, n.rows && `${n.rows.length} configurations`,
-          n.studies && `${n.studies.length} studies`, n.s != null && `${n.s} s`, n.cells && `${n.cells} parts`].filter(Boolean).join(' · ') || 'made';
+          n.studies && `${n.studies.length} studies`, n.s != null && `${n.s} s`, n.cells && `${n.cells} ${n.cells === 1 ? 'part' : 'parts'}`].filter(Boolean).join(' · ') || 'made';
         return `<div class="sk-views-note"><span>${ctx.esc(NOTE_LABEL[k] || k)}</span><span class="sk-data">${ctx.esc(what)}</span></div>`;
       });
       const f = v.facts || {};
