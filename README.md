@@ -215,7 +215,7 @@ Server settings go in `.env`:
 | `SK_RENDER_GID` | `992` | Group owning `/dev/dri/renderD128` on the host |
 | `SK_RENDERER` | `gpu` | Where this server renders: `gpu`, `software` (Mesa lavapipe) or `off` (helpers only); Settings → Rendering overrides it |
 | `TZ` | `UTC` | The time zone of quiet hours |
-| `SK_HOST_NAME` | the host name | This machine's name in `report.json` |
+| `SK_HOST_NAME` | the host name (`server` in a container) | This machine's name in `report.json` and the title block |
 | `SK_SOLIDCRAFT_CLI`, `SK_FFMPEG` | `solidcraft-cli`, `ffmpeg` | The programs, for a native helper (full paths on a Mac) |
 | `SK_LVP_ICD` | found under `/usr/share/vulkan/icd.d` | Mesa lavapipe's Vulkan ICD, for software rendering |
 

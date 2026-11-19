@@ -277,10 +277,15 @@ def ffmpeg() -> str:
 
 
 def host_name() -> str:
-    """This machine's name in report.json (SK_HOST_NAME, else the host name)."""
+    """This machine's name in report.json: SK_HOST_NAME, else the host name ("server" in a
+    container, whose host name is just its id)."""
     import socket
 
-    return get_settings().host_name or socket.gethostname() or "host"
+    given = get_settings().host_name.strip()
+    if given:
+        return given
+    name = socket.gethostname()
+    return "server" if not name or re.fullmatch(r"[0-9a-f]{12}", name) else name
 
 
 def _ff(*args: str) -> None:

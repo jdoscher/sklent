@@ -914,6 +914,19 @@ def test_gpu_info_reads_what_solidcraft_lands_on(monkeypatch, settings):
     solidcraft.gpu_info.cache_clear()
 
 
+def test_host_name_in_a_container_is_server(monkeypatch, settings):
+    import socket
+
+    monkeypatch.setattr(socket, "gethostname", lambda: "4feca38e80c9")
+    assert render.host_name() == "server"
+    monkeypatch.setattr(socket, "gethostname", lambda: "nas")
+    assert render.host_name() == "nas"
+    monkeypatch.setenv("SK_HOST_NAME", "disk")
+    from sklent import config
+    config.get_settings.cache_clear()
+    assert render.host_name() == "disk"
+
+
 def test_render_set_records_renderer_and_host(monkeypatch, tmp_path, settings):
     import test_integration as ti
 

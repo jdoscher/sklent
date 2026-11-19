@@ -15,6 +15,8 @@ services:
       SK_RENDERER: ${SK_RENDERER:-gpu}
       # Quiet hours (Settings → Rendering) are in this time zone.
       TZ: ${TZ:-UTC}
+      # This server's name in report.json and the title block ("server" if empty).
+      SK_HOST_NAME: ${SK_HOST_NAME:-}
     ports:
       - "${SK_PORT:-8090}:8000"
     volumes:
