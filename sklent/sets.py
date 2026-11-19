@@ -130,7 +130,9 @@ def latest_set(design_id: str) -> dict[str, Any] | None:
         return None
     s = _load(d, folder, folder)
     if s is not None and not s.get("commit_sha"):
-        s["commit_sha"] = d.get("rendered_sha") or d.get("commit_sha")  # pre-F1 shape
+        # pre-F1 shape: the row's rendered_sha is the file's BLOB, never a commit; the best
+        # commit known is the scanned one (it holds this blob unless the file moved on since)
+        s["commit_sha"] = s.get("head_sha") or d.get("commit_sha")
     return s
 
 

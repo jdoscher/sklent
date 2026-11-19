@@ -115,6 +115,7 @@ def clean_request(outputs: list[str] | None = None, preview_only: bool = False,
     over: dict[str, Any] = {}
     if preview_only:
         req["outputs"] = []
+        req["quick"] = True  # jobs._render keeps it beside a full set instead of replacing it
         # a quick check is the still alone: the views that are on by default wait too
         over.update({"views_configs": False, "views_motion": False})
     elif outputs is not None:
@@ -215,6 +216,8 @@ def render_overrides(design_id: str, opts: RenderOptions, settings: dict[str, An
         opts = dataclasses.replace(opts, outputs=list(req["outputs"])).validate()
         settings["outputs"] = list(opts.outputs)
     settings.update(req.get("settings") or {})
+    if req.get("quick"):
+        settings["quick_check"] = True  # the still alone: no feature steps either
     names, _ = highlight_for(design_id)
     if names:
         settings["views_highlight_names"] = names

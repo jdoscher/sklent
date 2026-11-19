@@ -42,6 +42,7 @@ _wake = threading.Event()
 _cancel_lock = threading.Lock()
 _cancelled: set[int] = set()
 _running: dict[str, int | None] = {"job": None}
+QUICK_DIR = "quick"  # quick-check stills kept beside a design's sets (not a set)
 
 
 class JobCancelled(Exception):
@@ -221,6 +222,7 @@ def _finish(job_id: int, error: str | None = None, message: str | None = None) -
 def run_job(job: dict) -> None:
     with _cancel_lock:
         _running["job"] = job["id"]
+        _cancelled.intersection_update({job["id"]})  # nothing else can be running now
     try:
         if job["kind"] == "scan":
             msg = scan(job["source_id"], _progress(job["id"]))
@@ -236,9 +238,9 @@ def run_job(job: dict) -> None:
             log.warning("job %s failed: %s\n%s", job["id"], exc, traceback.format_exc())
             _finish(job["id"], error=str(exc) or exc.__class__.__name__)
     finally:
-        with _cancel_lock:
+        with _cancel_lock:  # a job that ended takes every cancel request with it
             _running["job"] = None
-            _cancelled.discard(job["id"])
+            _cancelled.clear()
 
 
 def _status_without_job(design: dict) -> str:
@@ -261,6 +263,8 @@ def cancel(job_id: int) -> dict:
             if not job:
                 raise KeyError(f"no job {job_id}")
             if job["status"] not in ("queued", "running"):
+                with _cancel_lock:  # it ended between our tries: no cancel left to honour
+                    _cancelled.discard(job_id)
                 raise ValueError(f"job {job_id} is already {job['status']}")
             if job["status"] == "running":
                 with _cancel_lock:  # before the row changes, so the worker can't finish it
@@ -271,9 +275,13 @@ def cancel(job_id: int) -> dict:
             if changed:
                 break
         else:
+            with _cancel_lock:
+                _cancelled.discard(job_id)
             raise ValueError(f"job {job_id} kept changing state; try again")
         with _cancel_lock:
             ours = _running["job"] == job_id  # this process's worker is running it
+            if not ours:  # nothing here will consume it: don't keep the id
+                _cancelled.discard(job_id)
         if job["design_id"] and not ours:
             # nothing will unwind it (queued, or a row left running by another process):
             # put the design back here
@@ -547,6 +555,8 @@ def _render(settings, source: dict, design: dict, progress) -> str:
         opts, all_settings = render_overrides(design["id"], opts, all_settings)
     except ImportError:
         pass
+    # Every step sees the design row (specs' meta.design_row) next to the settings.
+    all_settings["design"] = {**design, "provider": source["provider"], "host": source["host"]}
     outputs, report = render_set(local, stage, stem, opts,
                                  lambda f, m: progress(0.02 + 0.86 * f, m),
                                  settings=all_settings)
@@ -554,6 +564,9 @@ def _render(settings, source: dict, design: dict, progress) -> str:
         report["inputs"] = inputs.links.report_for(local)
     (stage / "report.json").write_text(json.dumps(report, indent=2))
     shutil.rmtree(work, ignore_errors=True)
+
+    if all_settings.get("quick_check") and sets.latest_set(design["id"]) is not None:
+        return _keep_quick_check(design, stage, outputs)
 
     # The set's labels: the commit that made this version of the file, and git tags.
     commit = sets.commit_info(forge, design["owner"], design["repo"], design["commit_sha"], design["path"])
@@ -572,9 +585,11 @@ def _render(settings, source: dict, design: dict, progress) -> str:
     kist_notes: list[str] = []
     if kist.enabled:
         progress(0.9, "filing into Kist")
-        folder_id = kist.ensure_folder([settings.kist_root_folder, design["owner"], design["repo"], stem])
+        where_, ref_tag = _kist_ref(inputs, source)
+        folder_id = kist.ensure_folder([settings.kist_root_folder, design["owner"], design["repo"], stem,
+                                        *([where_] if where_ else [])])
         base_tags = ["solidcraft", f"repo:{design['owner']}/{design['repo']}", f"design:{stem}",
-                     f"palette:{opts.palette}", f"rev:{commit_sha[:10]}"]
+                     f"palette:{opts.palette}", f"rev:{commit_sha[:10]}", *([ref_tag] if ref_tag else [])]
         notes = (f"{design['owner']}/{design['repo']}:{design['path']} at "
                  f"{commit_sha[:10]}, rendered by sklent")
         before = {(i.get("style"), i.get("variant")): i["id"] for i in (previous or {}).get("kist_items") or []}
@@ -624,6 +639,46 @@ def _render(settings, source: dict, design: dict, progress) -> str:
     where = f" and filed {len(items)} in Kist" if items else ""
     tail = f"; pruned {plural(len(pruned), 'older set')}" if pruned else ""
     return f"rendered {plural(len(outputs), 'file')} ({plural(report['bodies'], 'body', 'bodies')}){where}{tail}"
+
+
+def _kist_ref(inputs, source: dict) -> tuple[str | None, str | None]:
+    """Kist subfolder and `ref:` tag for a render off the default branch (F12): a pull
+    request files under `<design>/pr-<n>` tagged `ref:pr-<n>`, a branch or tag under
+    `<design>/@<name>` tagged `ref:<name>`. The default branch: (None, None)."""
+    if not inputs:
+        return None, None
+    try:
+        info = inputs.refs.ref_info(source)
+    except Exception:  # noqa: BLE001 - filing never fails on a label
+        info = None
+    if not info:
+        return None, None
+    if info.get("kind") == "pull":
+        return f"pr-{info['number']}", f"ref:pr-{info['number']}"
+    name = re.sub(r"[^A-Za-z0-9._@+-]+", "-", str(info.get("label") or "")).strip("-")
+    return (f"@{name}", f"ref:{name}") if name else (None, None)
+
+
+def _keep_quick_check(design: dict, stage: Path, outputs: list) -> str:
+    """A quick check (F17) of a design that already has a set: keep its still beside the
+    sets (`<design>/quick/<set id>-preview.png`, which the views block shows while it is
+    the newest) and leave the current set, its Kist items and the design row as they are."""
+    from . import sets
+
+    settings = get_settings()
+    quick = settings.renders_dir / design["id"] / QUICK_DIR
+    quick.mkdir(parents=True, exist_ok=True)
+    kept = []
+    for o in outputs:
+        if o.variant == "preview" and (stage / o.file).is_file():
+            target = quick / f"{sets.set_id_for(design['blob_sha'])}-preview.png"
+            shutil.move(str(stage / o.file), target)
+            kept.append(target.name)
+    sets.discard(stage)
+    with db.connect() as conn:
+        d = db.row(conn.execute("SELECT * FROM designs WHERE id = ?", [design["id"]]).fetchone()) or design
+        db.update(conn, "designs", design["id"], status=_status_without_job(d), updated_at=db.now())
+    return "quick check: kept the still beside the current set" if kept else "quick check: no still made"
 
 
 def _tag_legacy_items(kist: Kist, previous: dict | None, notes: list[str]) -> None:

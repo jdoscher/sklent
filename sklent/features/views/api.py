@@ -213,8 +213,8 @@ def register_mcp(mcp) -> None:
 
     @mcp.tool(description=(
         "Quick check: queue a render of a design that makes only one shaded iso still (a few "
-        "seconds after the design loads). It replaces this commit's set with that still; render "
-        "again with render_outputs for the full set."))
+        "seconds after the design loads). The still is kept beside the design's current set, "
+        "which stays as it is; render_outputs (or render_design) makes the full set."))
     def quick_check(design_id: str) -> dict[str, Any]:
         return queue_render(design_id, preview_only=True)
 

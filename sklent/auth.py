@@ -57,6 +57,12 @@ def viewer_for(token: str) -> dict | None:
 
 
 def viewer_may_call(tool: str) -> bool:
+    try:
+        from .mcp_server import WRITE_TOOLS
+    except Exception:  # noqa: BLE001
+        WRITE_TOOLS = frozenset()  # noqa: N806
+    if tool in WRITE_TOOLS:  # classified as writing: never, whatever else says otherwise
+        return False
     if tool in VIEWER_TOOLS:
         return True
     try:

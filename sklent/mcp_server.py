@@ -151,7 +151,50 @@ def _register_features() -> None:
     features.register_mcp(mcp)
 
 
+# Every tool is classified here. Read-only tools get ToolAnnotations(readOnlyHint=True), the
+# mark auth.viewer_may_call accepts for viewer tokens; every other tool writes, renders,
+# builds files or reaches out (Kist, the forge) and answers 403 to a viewer. A new tool
+# must be added to one of the two sets (tests/test_integration.py checks it).
+READ_ONLY_TOOLS = frozenset({
+    # core
+    "list_sources", "list_designs", "job_status", "list_jobs", "wait_for_job", "get_render_set",
+    "view_render", "get_render_settings",
+    # revisions (R)
+    "list_sets", "compare_sets", "view_compare",
+    # inputs (P)
+    "list_class_submissions", "review_comment", "get_design_inputs",
+    # views (V)
+    "get_views", "view_output",
+    # specs (S)
+    "get_design_spec", "get_bom", "view_sheet",
+    # outputs (O)
+    "get_outputs", "listing_readiness", "listing_text", "list_photos",
+})
+WRITE_TOOLS = frozenset({
+    "render_url", "add_source", "scan_source", "render_design", "cancel_job", "set_render_settings",
+    "add_class_source", "post_review_comment",
+    "quick_check", "render_outputs", "set_highlight", "set_views_settings",
+    "make_contact_sheet",
+    "make_output_preset", "build_file_pack", "export_project_page", "build_listing_pack",
+    "set_listing_details", "attach_photo", "make_review_board", "create_share_link", "revoke_share_link",
+})
+
+
+def _annotate() -> None:
+    from mcp.types import ToolAnnotations
+
+    for name in READ_ONLY_TOOLS | WRITE_TOOLS:
+        tool = mcp._tool_manager.get_tool(name)
+        if tool is None:
+            continue
+        old = tool.annotations
+        tool.annotations = ToolAnnotations(
+            title=getattr(old, "title", None), readOnlyHint=name in READ_ONLY_TOOLS,
+            destructiveHint=getattr(old, "destructiveHint", None) if name in WRITE_TOOLS else None)
+
+
 _register_features()
+_annotate()
 
 
 mcp_http_app = mcp.streamable_http_app(

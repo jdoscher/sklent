@@ -561,6 +561,46 @@ def test_jobs_render_applies_the_request(settings, monkeypatch):
     monkeypatch.setattr(jobs, "render_set", fake_render_set)
     jobs.render(did, force=True)
     assert seen["outputs"] == [] and seen["settings"]["outputs"] == []
+    assert seen["settings"]["quick_check"] is True and seen["settings"]["design"]["id"] == did
+
+
+def test_quick_check_keeps_the_full_set_current(settings, monkeypatch):
+    """Under the set-per-version lifecycle a quick check never replaces a full set: its
+    still goes beside it (quick/) and the design keeps its set, files and status."""
+    files = [{"file": "case-shaded-hires-64x36.png", "style": "shaded", "variant": "hires", "width": 64,
+              "height": 36}]
+    did, folder = _design(settings, files=files)
+    (folder / "case-shaded-hires-64x36.png").write_bytes(b"full")
+    before = jobs.get_design(did)
+    views.save_request(did, views.clean_request(preview_only=True))
+
+    class Forge:
+        def __init__(self, *a, **k):
+            pass
+
+        def fetch(self, *a, **k):
+            return b"solidcraft"
+
+    def fake_render_set(local, out_dir, stem, opts, progress, **kw):
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / "case-preview.png").write_bytes(b"quick")
+        return [Output("case-preview.png", "shaded", "preview", 8, 8)], {"bodies": 1}
+
+    monkeypatch.setattr(jobs, "Forge", Forge)
+    monkeypatch.setattr(jobs, "looks_like_design", lambda data, path=None: True)
+    monkeypatch.setattr(jobs, "render_set", fake_render_set)
+    msg = jobs.render(did, force=True)
+    after = jobs.get_design(did)
+    assert "quick check" in msg
+    assert after["render_dir"] == before["render_dir"] and after["files"] == before["files"]
+    assert after["status"] == "rendered"
+    assert (folder / "case-shaded-hires-64x36.png").read_bytes() == b"full"
+    assert sets.latest_set(did)["files"][0]["variant"] == "hires"
+    quick = list((settings.renders_dir / did / jobs.QUICK_DIR).glob("*-preview.png"))
+    assert len(quick) == 1 and quick[0].read_bytes() == b"quick"
+    from sklent.features.views.api import preview_file
+    assert preview_file(after) == quick[0]
+    assert all(s["id"] != jobs.QUICK_DIR for s in sets.list_sets(did))
 
 
 def test_views_api(settings):
@@ -591,7 +631,7 @@ def test_views_api(settings):
     assert r.json()["job"]["force"] == 1
     assert c.post(f"/api/designs/{did}/views/render", json={"outputs": ["8k"]}, headers=H).status_code == 422
     assert c.post(f"/api/designs/{did}/views/render", json={"preview_only": True}, headers=H).json()["request"] == \
-        {"outputs": [], "settings": {"views_configs": False, "views_motion": False}}
+        {"outputs": [], "quick": True, "settings": {"views_configs": False, "views_motion": False}}
     assert c.get("/api/views/beds", headers=H).json()["beds"][0]["name"] == "Bambu Lab A1 mini"
     assert c.get("/api/designs/nope/views", headers=H).status_code == 404
     s = c.put("/api/settings", json={"views_plate": True, "outputs": ["hires"]}, headers=H).json()

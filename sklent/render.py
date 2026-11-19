@@ -20,6 +20,7 @@ Which files a render makes:
 import math
 import os
 import queue
+import re
 import shutil
 import subprocess
 import threading
@@ -214,23 +215,58 @@ def match_bodies(names: list[str], patterns: list[str]) -> list[str]:
     return [n for n in names if any(n == p or fnmatchcase(n, p) for p in pats)]
 
 
+_INSTANCE = re.compile(r"^(?P<definition>.+) \((?P<component>[^()]+):(?P<n>\d+)\)$")
+
+
 def world_bodies(sc: SolidCraft, info: list[dict] | None = None) -> list[dict]:
     """inspect_design's bodies with their bounding boxes where they are placed.
 
     inspect_design measures a component's bodies in the component's own frame, so a part
     a joint turns (a hinge leaf standing up) would be framed where it was modelled, and
-    cropped. `measure {summary}` gives each body's box in the world; it replaces the bbox
-    by name. If it fails, inspect_design's boxes stand."""
+    cropped. `measure {summary}` gives each placed body's box in the world; it replaces the
+    bbox by name. A component placed more than once shows up in `measure` as more bodies
+    (`ArmBody`, `ArmBody (Arm:2)`): those extra placements go into their definition's
+    `placed` list, so `placed_bounds` frames every instance where it really sits. If
+    `measure` fails, inspect_design's boxes stand."""
     info = sc.bodies() if info is None else info
     try:
-        placed = {b.get("name"): b.get("bbox") for b in (sc.tool("measure", summary=True) or {}).get("bodies", [])}
+        rows = (sc.tool("measure", summary=True) or {}).get("bodies", [])
     except Exception:  # noqa: BLE001 - a refinement of the framing never fails a render
         return info
-    for b in info:
-        box = placed.get(b.get("name"))
-        if box and box.get("min") and box.get("max"):
-            b["bbox"] = box
+    by_name = {b.get("name"): b for b in info}
+    extra = [r for r in rows if r.get("name") not in by_name]
+    definition: dict[str, str] = {}
+    if extra:  # instances beyond the first: which definition each one places
+        try:
+            definition = {r.get("name"): r.get("definition") for r in
+                          (sc.tool("measure", names_only=True) or {}).get("bodies", []) if r.get("definition")}
+        except Exception:  # noqa: BLE001 - fall back to the "Body (Component:n)" naming
+            definition = {}
+    for r in rows:
+        box = r.get("bbox") or {}
+        if not (box.get("min") and box.get("max")):
+            continue
+        name = r.get("name")
+        if name in by_name:
+            by_name[name]["bbox"] = box
+            continue
+        m = _INSTANCE.match(name or "")
+        owner = by_name.get(definition.get(name) or (m.group("definition") if m else None))
+        if owner is not None:
+            owner.setdefault("placed", []).append(box)
+        elif r.get("visible") is not False and info:  # an unknown placed body still has to be in frame
+            host = next((b for b in info if b.get("visible") is not False), info[0])
+            host.setdefault("placed", []).append(box)
     return info
+
+
+def placed_bounds(info: list[dict]) -> tuple[list[float], list[float]] | None:
+    """The union of every visible body's box and its extra placements (world_bodies)."""
+    flat = []
+    for b in info:
+        flat.append(b)
+        flat += [{"bbox": box, "visible": b.get("visible")} for box in b.get("placed") or []]
+    return SolidCraft.bounds(flat)
 
 
 # ---------------------------------------------------------------- encoding
@@ -530,7 +566,8 @@ def render_set(design: Path, out_dir: Path, stem: str, opts: RenderOptions,
         clock = time.monotonic()
         info = world_bodies(sc, info)  # boxes where the parts are placed (joints, components)
         timings["measure"] = time.monotonic() - clock
-        box = sc.bounds(info)
+        # The turntable, stills, preview and every step frame this one world box.
+        box = placed_bounds(info)
         if box is None:
             raise SolidCraftError("the design has no visible bodies to frame")
         report["bodies"] = len(bodies)
@@ -645,7 +682,7 @@ def render_set(design: Path, out_dir: Path, stem: str, opts: RenderOptions,
         # Feature steps (sklent.steps): exploded views, sections, specs ... on the same process.
         from . import steps as _steps
         extra_guard: list[Path] = []
-        if _steps.registered():
+        if _steps.registered() and not (settings or {}).get("quick_check"):
             clock = time.monotonic()
             progress(0.705, "extra views")
             paint_style(sc, bodies, pal, "shaded")  # steps start from the shaded look

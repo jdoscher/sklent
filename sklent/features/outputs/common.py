@@ -118,12 +118,9 @@ def still_files(s: dict) -> list[dict]:
 
 
 def commit_of(d: dict, s: dict) -> str:
-    """The commit a set was rendered from. (sets.latest_set's commit_sha can carry the blob
-    sha, because the design row's rendered_sha is the blob; fall back to the design's commit.)"""
-    c = s.get("commit_sha") or ""
-    if not c or c == s.get("blob_sha") or c == d.get("blob_sha"):
-        c = d.get("commit_sha") or c
-    return c or ""
+    """The commit a set was rendered from (sets give the real commit; the design's scanned
+    commit stands in for a set that has none)."""
+    return s.get("commit_sha") or d.get("commit_sha") or ""
 
 
 def report_of(s: dict) -> dict:
