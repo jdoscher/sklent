@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+### Outputs and publishing (0.2 builder O)
+
+- Output presets (F6): named sizes cut from a set on demand and framed on the part, stepped
+  down to each site's cap (Printables/MakerWorld 4:3 cover, Cults 800×800 ≤ 10 MB video,
+  YouTube 1280×720 ≤ 2 MB, LinkedIn and Instagram 4:5, GitHub 1280×640 ≤ 1 MB, Handshake
+  PDF ≤ 1 MB), cached under the set's `presets/`; an editable list; "Download all" zips.
+- Print and release file pack (F7, off by default): a render step exports STEP, 3MF and STL
+  from the rendered commit (per body, and no 3MF, above a body budget; hidden and excluded
+  bodies left out); packs add README, licence and a sha256 manifest and split for Etsy's
+  5 × 20 MB. Checked against SolidCraft 0.44.1.
+- Project page export (F5): a static, offline HTML folder per design or source.
+- Listing packs and text (F13): a zip per marketplace checked against its rules, with
+  `listing.md` and `pack.json`. Nothing is posted.
+- Real photo slots (F19): upload print photos (EXIF removed); they lead packs and pages; a
+  "ready to list" checklist per marketplace and a `photos n/N` tile badge.
+- Brand presets (F23, off by default): watermark (text or PNG mark), title and end cards on
+  exported copies only.
+- Kist review board (F26): a set or source as a Kist board; a share link with guest
+  proofing only when allowed in Settings and clicked. `sklent.features.outputs.share_link()`
+  hands it to other features.
+- The drawing sheet shows "no preview" for files without a picture (STEP, STL, zips), and
+  its Styles cell lists only shaded/wireframe.
+
 ### Design system and UI (0.2 builder D)
 
 - Kist 2.0's design system: its tokens are vendored verbatim in `sklent/web/css/kist-tokens.css`

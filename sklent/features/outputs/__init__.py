@@ -116,6 +116,11 @@ def readiness_all():
 
 # ---------------------------------------------------------------- F6 presets
 
+@router.get("/outputs/presets/defaults")
+def preset_defaults():
+    return presets.DEFAULT_PRESETS
+
+
 @router.get("/designs/{design_id}/outputs/presets")
 def list_presets(design_id: str, set_id: str | None = None):
     return _guard(presets.list_for, design_id, set_id)

@@ -165,8 +165,10 @@ def make_board(scope: str, target_id: str, *, kist: Kist | None = None) -> dict:
     name = _target(scope, target_id)
     set_id = the_set(target_id)["id"] if scope == "design" else None
     ids = design_item_ids(target_id) if scope == "design" else source_item_ids(target_id)
+    known = len(ids)
+    ids = _alive(kist, ids)  # items trashed or purged in Kist since they were filed
     if not ids:
-        raise OutputError("nothing of this set is in Kist yet: render it with Kist on first", 409)
+        raise OutputError("nothing of this set is in Kist (any more): render it with Kist on first", 409)
     prev = _latest(scope, target_id)
     if prev and prev["board_id"] and prev["set_id"] == set_id and prev["items"] == len(ids):
         r = kist.http.get(f"{kist.url}/api/boards/{prev['board_id']}")
@@ -179,7 +181,21 @@ def make_board(scope: str, target_id: str, *, kist: Kist | None = None) -> dict:
                      "created_at) VALUES (?,?,?,?,?,?,?,?)",
                      [rid, scope, target_id, set_id, board["id"], board.get("name", name), min(len(ids), 500),
                       db.now()])
-    return _out(_latest(scope, target_id), kist)
+    out = _out(_latest(scope, target_id), kist)
+    out["missing_in_kist"] = known - len(ids)
+    return out
+
+
+def _alive(kist: Kist, ids: list[str]) -> list[str]:
+    """The ids Kist still has (GET /api/items/{id} is 404 for trashed or deleted items)."""
+    out = []
+    for item_id in ids:
+        try:
+            if kist.http.get(f"{kist.url}/api/items/{item_id}").status_code == 200:
+                out.append(item_id)
+        except httpx.HTTPError as exc:
+            raise OutputError(f"Kist didn't answer: {exc}", 502) from exc
+    return out
 
 
 def delete_board(scope: str, target_id: str, *, kist: Kist | None = None) -> dict:

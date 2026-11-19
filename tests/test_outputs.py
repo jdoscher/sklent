@@ -489,6 +489,8 @@ class FakeKist:
             iid = f"i{len(self.items)}"
             self.items.append({"id": iid, "body": request.content})
             return httpx.Response(201, json={"item": {"id": iid}})
+        if path.startswith("/api/items/") and m == "GET":
+            return httpx.Response(404 if "gone" in path else 200, json={})
         if path.startswith("/api/items/") and m == "DELETE":
             return httpx.Response(200, json={})
         if path == "/api/boards" and m == "POST":
@@ -524,8 +526,9 @@ def kist(monkeypatch, made):
 
     for mod in (common, photos, review):
         monkeypatch.setattr(mod, "Kist", make)
-    with db.connect() as conn:  # the render filed its set (jobs._render)
+    with db.connect() as conn:  # the render filed its set (jobs._render); one item was purged in Kist since
         items = [{"id": f"r-{f['file']}", "file": f["file"]} for f in made.files]
+        items.append({"id": "gone-1", "file": "case-old.png"})
         db.update(conn, "designs", made.id, kist_folder_id="folder-1", kist_items=items)
     return fake
 
@@ -546,6 +549,7 @@ def test_review_board_and_share_link(made, kist, client):
     board = kist.boards["b0"]
     assert board["item_ids"][0] == "i0"  # the real photo first
     assert board["item_ids"][1] == "r-case-shaded-social-1024.png"
+    assert "gone-1" not in board["item_ids"] and r.json()["missing_in_kist"] == 1
     assert outputs.share_link(made.id) is None
     r = client.post(f"/api/designs/{made.id}/outputs/review/share", headers=H, json={})
     assert r.status_code == 403 and "public" in r.json()["detail"]  # off by default
@@ -586,6 +590,10 @@ def test_module_is_wired_in():
     s = jobs.get_all_settings()
     assert s["outputs_filepack"] is False and s["outputs_review_share_links"] is False
     assert s["outputs_brand_text"] == "" and s["outputs_presets"] == presets.DEFAULT_PRESETS
+
+
+def test_preset_defaults_endpoint(client):
+    assert client.get("/api/outputs/presets/defaults", headers=H).json() == presets.DEFAULT_PRESETS
 
 
 def test_summary_endpoint(made, client):
