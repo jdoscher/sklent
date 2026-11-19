@@ -101,20 +101,26 @@ function drawViewer(d, sheets, current) {
       try { current.section.render(viewer.firstChild, d, ctx); } catch (err) { console.error(`detail sheet ${current.section.id}`, err); }
     } else {
       const f = current.file;
-      // width/height give the box its true aspect before the media arrives (and when a
-      // browser can't decode it), so the dimension lines are right from the start
-      const size = `width="${f.width}" height="${f.height}"`;
-      viewer.innerHTML = f.file.endsWith('.mp4')
-        ? `<video class="media" ${size} src="${esc(f.url)}" autoplay loop muted playsinline></video>`
-        : `<img class="media" ${size} src="${esc(f.url)}" alt="${esc(`${d.name}: ${VARIANT_LABEL[f.variant] || f.variant}, ${f.style}`)}" />`;
-      const m = viewer.querySelector('.media');
-      m.addEventListener(m.tagName === 'VIDEO' ? 'loadedmetadata' : 'load', () => requestAnimationFrame(drawDims));
+      if (!/\.(png|jpe?g|gif|webp|mp4)$/i.test(f.file)) {
+        // a document (PDF, CSV, Markdown): name it and offer it; no media box, so no dimension lines
+        viewer.innerHTML = `<div class="placeholder doc">${icon('download', 20)}<span class="file-name">${esc(f.file)}</span>
+          <span><a class="q" href="${esc(f.url)}" target="_blank" rel="noopener">Open</a> · <a class="q" href="${esc(f.url)}" download="${esc(f.file)}">Download</a></span></div>`;
+      } else {
+        // width/height give the box its true aspect before the media arrives (and when a
+        // browser can't decode it), so the dimension lines are right from the start
+        const size = `width="${f.width}" height="${f.height}"`;
+        viewer.innerHTML = f.file.endsWith('.mp4')
+          ? `<video class="media" ${size} src="${esc(f.url)}" autoplay loop muted playsinline></video>`
+          : `<img class="media" ${size} src="${esc(f.url)}" alt="${esc(`${d.name}: ${VARIANT_LABEL[f.variant] || f.variant}, ${f.style}`)}" />`;
+        const m = viewer.querySelector('.media');
+        m.addEventListener(m.tagName === 'VIDEO' ? 'loadedmetadata' : 'load', () => requestAnimationFrame(drawDims));
+      }
     }
   }
   viewer.querySelectorAll('.cap').forEach((n) => n.remove());
   if (current) {
     const facts = current.file
-      ? `${current.file.width} × ${current.file.height} · ${fmtBytes(current.file.bytes)} · ${idx} of ${sheets.length}`
+      ? `${current.file.width ? `${current.file.width} × ${current.file.height} · ` : ''}${fmtBytes(current.file.bytes)} · ${idx} of ${sheets.length}`
       : `${idx} of ${sheets.length}`;
     viewer.insertAdjacentHTML('beforeend', `<div class="cap"><span class="file-name">${esc(current.file ? current.file.file : current.section.title)}</span><span class="sk-data">${facts}</span></div>`);
   }
@@ -157,7 +163,7 @@ function schedHtml(sheets) {
     html += `<div class="srow${active}" data-sheet="${esc(s.key)}" role="button" tabindex="0" aria-current="${!!active}">
       <span class="no sk-data">${no}</span>
       <span class="nm">${esc(VARIANT_LABEL[f.variant] || f.variant)}</span>
-      <span class="px sk-data">${f.width}×${f.height}</span>
+      <span class="px sk-data">${f.width ? `${f.width}×${f.height}` : '—'}</span>
       <span class="size sk-data"${f.variant === 'discord' ? ` title="Discord's upload limit is ${DISCORD_MB} MB"` : ''}>${size}</span>
       <a href="${esc(f.url)}" download="${esc(f.file)}" aria-label="Download ${esc(f.file)}" title="Download">${icon('download', 14)}</a>
     </div>`;
