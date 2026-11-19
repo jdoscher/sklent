@@ -3,7 +3,8 @@
 //
 // Seam: registerSettingsGroup({ id, title, order, fields: [{ name, label, type, unit,
 // min, max, step, options, hint }] }). type is number (default) | select | checkbox |
-// text; options are values or { value, label }. Fields load from GET /api/settings
+// text | checklist (a list value: one checkbox per option); options are values or
+// { value, label }. Fields load from GET /api/settings
 // by name and are sent with the built-in ones in the same PUT /api/settings, so a
 // group's keys must be ones the server accepts (add them server-side first).
 
@@ -57,6 +58,8 @@ function inputHtml(f, v) {
       return `<input type="checkbox" name="${esc(f.name)}" aria-label="${esc(f.label)}" ${v ? 'checked' : ''} />`;
     case 'text':
       return `<input type="text" name="${esc(f.name)}" aria-label="${esc(f.label)}" value="${esc(v ?? '')}" />`;
+    case 'checklist':
+      return `<span class="checks">${(f.options || []).map((o) => `<label><input type="checkbox" name="${esc(f.name)}" value="${esc(optValue(o))}" ${(v || []).map(String).includes(String(optValue(o))) ? 'checked' : ''} /> ${esc(optLabel(o))}</label>`).join('')}</span>`;
     case 'pair':
       return `<input type="number" name="${esc(f.pair[0])}" aria-label="${esc(f.label)} width"${lim} value="${esc(v?.[0] ?? '')}" required /><span class="x">×</span><input type="number" name="${esc(f.pair[1])}" aria-label="${esc(f.label)} height"${lim} value="${esc(v?.[1] ?? '')}" required />`;
     default:
@@ -107,6 +110,7 @@ function fieldValue(form, f) {
   if (f.type === 'select') return el ? optValue(f.options[Number(el.value)]) : undefined;
   if (f.type === 'checkbox') return el ? el.checked : undefined;
   if (f.type === 'text') return el ? el.value : undefined;
+  if (f.type === 'checklist') return $$(`input[name="${f.name}"]`, form).filter((c) => c.checked).map((c) => optValue(f.options.find((o) => String(optValue(o)) === c.value)));
   return el && el.value !== '' ? Number(el.value) : undefined;
 }
 

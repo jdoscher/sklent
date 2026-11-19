@@ -3,3 +3,4 @@
 // Each module imports the seams it needs (registerDetailSection from detail.js,
 // registerSidebarSection from sidebar.js, registerTileBadge from tiles.js,
 // registerSettingsGroup from settings.js, api from api.js). See docs/design.md.
+import './features/views.js';

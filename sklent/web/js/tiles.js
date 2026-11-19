@@ -4,6 +4,8 @@
 //
 // Seam: registerTileBadge(fn) where fn(design) -> { text, title } | null. Badges sit
 // at the right of the name line as small neutral chips (e.g. a revision count).
+// Seam: registerTileFigure(fn) where fn(design) -> url | null: a still for a design that
+// has none yet (the quick-check still while its first render runs).
 
 import { esc } from './dom.js';
 import { envelope, plural, splitExt } from './format.js';
@@ -11,6 +13,21 @@ import { icon } from './icons.js';
 import { activeJobFor, state } from './store.js';
 
 const badgeFns = [];
+const figureFns = [];
+
+/** Add a tile figure source for designs with no still yet: fn(design) -> url | null. The
+ * first non-null wins (e.g. the quick-check still while the first render runs). */
+export function registerTileFigure(fn) {
+  if (typeof fn !== 'function') throw new Error('registerTileFigure needs a function');
+  figureFns.push(fn);
+}
+
+function figureUrl(d) {
+  for (const fn of figureFns) {
+    try { const u = fn(d); if (u) return u; } catch (err) { console.error('tile figure', err); }
+  }
+  return null;
+}
 
 /** Add a tile badge: fn(design) -> { text, title } | null. */
 export function registerTileBadge(fn) {
@@ -71,9 +88,11 @@ function placeholder(d, job) {
 export function tile(d) {
   const job = activeJobFor(d.id);
   const [stem, ext] = splitExt(d.name);
+  const early = d.thumb_url ? null : figureUrl(d);
   const fig = d.thumb_url
     ? `<img src="${esc(d.thumb_url)}" data-still="${esc(d.thumb_url)}" data-gif="${esc(d.gif_url || '')}" loading="lazy" decoding="async" alt="" />`
-    : `<div class="placeholder">${placeholder(d, job)}</div>`;
+    : early ? `<img src="${esc(early)}" decoding="async" alt="" />`
+      : `<div class="placeholder">${placeholder(d, job)}</div>`;
   const pct = job && job.status === 'running' ? Math.round(job.progress * 100) : null;
   const rule = pct != null
     ? `<div class="rule"><i style="width:${pct}%"></i><b style="left:${Math.min(96, Math.max(4, pct))}%">${pct}%</b></div>` : '';
