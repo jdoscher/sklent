@@ -188,7 +188,7 @@ Server settings go in `.env`:
 | `SK_DATA` | `./data` | Database and local render sets |
 | `SK_KIST_URL`, `SK_KIST_TOKEN` | | Kist to file sets into; empty URL keeps renders local |
 | `SK_KIST_ROOT_FOLDER` | `SolidCraft` | Top-level Kist folder |
-| `SK_GITHUB_TOKEN` | | Private repos, and a higher API rate limit |
+| `SK_GITHUB_TOKEN` | | Private repos, and a higher API rate limit (without one GitHub allows 60 API calls an hour, a handful of designs' first renders) |
 | `SK_FORGEJO_URL`, `SK_FORGEJO_TOKEN` | | Your Forgejo; the token is only sent to that host |
 | `SK_SCAN_INTERVAL_MINUTES` | `360` | Periodic re-scan; `0` turns it off |
 | `SK_RENDER_PROCESSES` | `4` | Most SolidCraft processes per design (see below) |

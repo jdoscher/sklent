@@ -207,6 +207,10 @@ shared seams (render steps, feature modules, settings registry, `sets.py`) and i
   reach only the read-only ones and only `GET` routes.
 - `sets.latest_set()` gives the real commit for sets from 0.1 (it gave the file's blob sha).
 - Cancel requests no longer outlive their job.
+- Revision tag labels stop looking tags up while fewer than 25 forge API calls are left this
+  hour (and finish on a later render), so they never starve a download: without a GitHub
+  token (60 calls an hour) the first renders of five designs used to exhaust the limit and
+  the next downloads failed with 403. Set `SK_GITHUB_TOKEN` for anything beyond a few designs.
 
 ## 0.1.1 (2026-11-01)
 

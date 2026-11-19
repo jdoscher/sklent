@@ -692,3 +692,39 @@ def test_review_comment_links_the_kist_share_link(every_variant):
     md = linked["markdown"] if isinstance(linked, dict) else linked
     assert "https://kist.example.com/s/abc" in md
     assert "https://kist.example.com/s/abc" not in (plain["markdown"] if isinstance(plain, dict) else plain)
+
+
+def test_tag_labels_leave_forge_calls_for_downloads(settings):
+    """Staging found it: without a GitHub token (60 calls an hour) the first tag lookups of
+    five designs (one call per tag each) used the whole hour and the next downloads got 403.
+    Tag lookups stop while fewer than RATE_RESERVE calls are left, and try again later."""
+    from sklent import sets
+
+    class Resp:
+        def __init__(self, data, left):
+            self._data, self.headers = data, {"x-ratelimit-remaining": str(left)}
+
+        def json(self):
+            return self._data
+
+    class Forge:
+        provider, host = "github", "https://github.com"
+
+        def __init__(self):
+            self.left, self.calls = 40, 0
+
+        def _get(self, path):
+            self.calls += 1
+            self.left -= 1
+            if "/tags?" in path:
+                return Resp([{"name": f"v{i}", "commit": {"sha": f"{i:040d}"}} for i in range(30)], self.left)
+            return Resp({"sha": "b" * 40}, self.left)
+
+    did, _, _ = _design_row(settings)
+    f = Forge()
+    sets._remaining.clear()
+    out = sets.tags_by_blob(f, jobs.get_design(did))
+    assert f.left == sets.RATE_RESERVE - 1 and len(out["b" * 40]) < 30  # stopped at the reserve
+    f.left = 5000
+    out = sets.tags_by_blob(f, jobs.get_design(did))  # a later render finishes the labels
+    assert len(out["b" * 40]) == 30

@@ -316,8 +316,23 @@ def prune(design_id: str, keep: Any, kist=None) -> list[str]:
 # tags whose tree holds it, and the commits between two versions. They take a
 # `sources.Forge` and never fail a render: on any error they return None / [].
 
+# Labels are a bonus: they must never spend the forge API calls a download needs. GitHub
+# allows 60 calls an hour without a token, and a first tag lookup costs one call per tag.
+RATE_RESERVE = 25
+_remaining: dict[str, int] = {}
+
+
 def _forge_json(forge, path: str) -> Any:
-    return forge._get(path).json()
+    r = forge._get(path)
+    left = getattr(r, "headers", {}).get("x-ratelimit-remaining")
+    if left is not None and str(left).isdigit():
+        _remaining[getattr(forge, "host", "")] = int(left)
+    return r.json()
+
+
+def _calls_left(forge) -> int | None:
+    """The forge's API calls left this hour, as its last answer said (None: unknown)."""
+    return _remaining.get(getattr(forge, "host", ""))
 
 
 def _commit_out(c: dict) -> dict[str, Any]:
@@ -389,6 +404,10 @@ def tags_by_blob(forge, design: dict, limit: int = 30) -> dict[str, list[str]]:
     for t in tags:
         key = f"{t['sha']}:{design['path']}"
         if key not in cache:
+            left = _calls_left(forge)
+            if left is not None and left < RATE_RESERVE:  # leave the rest for downloads
+                log.info("tags for %s: %s API calls left, the rest wait for a later render", design["path"], left)
+                break
             cache[key] = blob_at(forge, design["owner"], design["repo"], t["sha"], design["path"])
             changed = True
         blob = cache[key]
