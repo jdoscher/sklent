@@ -71,7 +71,7 @@
 /* ---------- sidebar section: the selected source ---------- */
 .sk-outputs-src { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 12px 8px; }
 .sk-outputs-src button { height: 24px; padding: 0 8px; font-size: var(--fs-1); border-color: var(--chrome-line); }
-.sk-outputs-src .sk-outputs-note { flex-basis: 100%; color: var(--text-dim); font-size: var(--fs-1); line-height: 1.4; }
+.sk-outputs-src .sk-outputs-note { flex-basis: 100%; min-width: 0; overflow-wrap: anywhere; color: var(--text-dim); font-size: var(--fs-1); line-height: 1.4; }
 
 /* ---------- the presets and brand dialog (a float) ---------- */
 .sk-outputs-dialog { width: min(860px, calc(100vw - 32px)); }

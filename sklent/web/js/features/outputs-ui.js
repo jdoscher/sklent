@@ -66,7 +66,7 @@ registerSidebarSection({
     el.innerHTML = `<div class="sk-outputs-src">
       <button type="button" data-src-page ${src.rendered ? '' : 'disabled'}>Project page (.zip)</button>
       <button type="button" data-src-review ${src.rendered && ctx.state.status.kist?.url ? '' : 'disabled'}>Kist board…</button>
-      <span class="sk-outputs-note">${esc(src.label)}: ${src.rendered} rendered design${src.rendered === 1 ? '' : 's'}. Downloads only; nothing is posted.</span>
+      <span class="sk-outputs-note">${esc(src.label.split("/").pop())}: ${src.rendered} rendered design${src.rendered === 1 ? '' : 's'}. Downloads only; nothing is posted.</span>
     </div>`;
     el.onclick = async (e) => {
       try {
