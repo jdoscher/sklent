@@ -99,6 +99,9 @@ function drawViewer(d, sheets, current) {
     } else if (current.section) {
       viewer.innerHTML = '<div class="section-sheet"></div>';
       try { current.section.render(viewer.firstChild, d, ctx); } catch (err) { console.error(`detail sheet ${current.section.id}`, err); }
+    } else if (!/\.(mp4|webm|png|jpe?g|gif|webp)$/i.test(current.file.file)) {
+      // a file with no picture (STEP, STL, a zip, a CSV): say so instead of a broken image
+      viewer.innerHTML = `<div class="placeholder">${OUTLINE_MARK}<span>${esc(current.file.file)}: no preview</span><a href="${esc(current.file.url)}" download="${esc(current.file.file)}">Download</a></div>`;
     } else {
       const f = current.file;
       // width/height give the box its true aspect before the media arrives (and when a
@@ -173,7 +176,7 @@ function titleCells(d, sheets, current) {
   const [stem] = splitExt(d.name);
   const idx = sheets.indexOf(current) + 1;
   const pal = state.status.palettes.find((p) => p.name === (spec.palette || r.palette));
-  const styles = [...new Set(d.files.map((f) => f.style))].join(' + ');
+  const styles = [...new Set(d.files.map((f) => f.style).filter((st) => st === 'shaded' || st === 'wireframe'))].join(' + ');
   const env = envelope(spec.bounds_mm || r.bounds_mm);
   const bodies = spec.bodies ?? r.bodies;
   const mass = fmtMass(spec.mass_g ?? (spec.mass_kg != null ? spec.mass_kg * 1000 : null));

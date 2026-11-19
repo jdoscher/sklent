@@ -1,0 +1,107 @@
+/* outputs.css: area O (outputs and publishing) in the drawing sheet, the sidebar and
+ * its dialog. Kist tokens and --sk-* only; every class starts with sk-outputs-. The
+ * sheet pages sit on the sheet surface (--sk-sheet-*), the dialog on a float. */
+
+/* ---------- sheet pages (registerDetailSection sheet: true) ---------- */
+.sk-outputs-page { color: var(--sk-sheet-text); padding: 8px 16px 32px 24px; max-width: 980px; }
+.sk-outputs-page h3 {
+  font-family: var(--font-display); font-weight: 400; font-size: var(--fs-5); line-height: 1.1; margin: 0 0 4px;
+}
+.sk-outputs-page .sk-outputs-lede { color: var(--sk-sheet-dim); margin: 0 0 14px; max-width: 72ch; line-height: 1.5; }
+.sk-outputs-page .lbl { padding-left: 0; padding-right: 0; }
+.sk-outputs-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center;
+  min-height: 32px; border-bottom: var(--sk-line) solid var(--sk-sheet-rule);
+}
+.sk-outputs-row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-outputs-row .sk-data, .sk-outputs-dim { color: var(--sk-sheet-dim); }
+.sk-outputs-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
+.sk-outputs-page button, .sk-outputs-side button { border-color: var(--sk-sheet-rule); }
+.sk-outputs-page a.sk-outputs-link, .sk-outputs-side a.sk-outputs-link {
+  color: var(--sk-sheet-text); display: inline-flex; align-items: center; gap: 4px;
+  height: var(--ctl-h); padding: 0 8px; border-radius: var(--ctl-radius); text-decoration: none;
+  border: 1px solid var(--sk-sheet-rule);
+}
+.sk-outputs-page a.sk-outputs-link:hover, .sk-outputs-side a.sk-outputs-link:hover { background: var(--preview-hover); }
+.sk-outputs-page input[type=text], .sk-outputs-page input[type=password], .sk-outputs-page textarea,
+.sk-outputs-page select {
+  font: inherit; color: var(--sk-sheet-text); background: transparent;
+  border: 1px solid var(--sk-sheet-rule); border-radius: var(--ctl-radius); padding: 4px 8px; min-height: var(--ctl-h);
+}
+.sk-outputs-page textarea { width: 100%; min-height: 64px; resize: vertical; line-height: 1.45; }
+.sk-outputs-form { display: grid; grid-template-columns: 9em minmax(0, 1fr); gap: 6px 12px; align-items: start; margin: 6px 0 4px; }
+.sk-outputs-form label { color: var(--sk-sheet-dim); padding-top: 6px; }
+.sk-outputs-form .from { color: var(--sk-sheet-dim); font-family: var(--sk-font-data); font-size: var(--sk-fs-data); }
+.sk-outputs-check { display: inline-flex; gap: 6px; align-items: center; color: var(--sk-sheet-text); }
+
+/* galleries: presets and photos, shown whole, never drawn over */
+.sk-outputs-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin: 8px 0 12px; }
+.sk-outputs-card { min-width: 0; }
+.sk-outputs-card .fig {
+  aspect-ratio: 4 / 3; display: flex; align-items: center; justify-content: center;
+  border: var(--sk-line) solid var(--sk-sheet-rule); overflow: hidden;
+}
+.sk-outputs-card .fig img, .sk-outputs-card .fig video { max-width: 100%; max-height: 100%; display: block; }
+.sk-outputs-card .fig .sk-outputs-dim { padding: 8px; text-align: center; }
+.sk-outputs-card .sk-outputs-cap { display: flex; gap: 6px; align-items: baseline; margin-top: 4px; min-width: 0; }
+.sk-outputs-card .sk-outputs-cap .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-outputs-card .tools { display: flex; gap: 2px; margin-top: 2px; }
+
+/* checklists: a mark, the rule, the detail; no hue (ok / missing / unknown in ink) */
+.sk-outputs-market { margin: 4px 0 14px; }
+.sk-outputs-market .head { display: flex; gap: 8px; align-items: center; min-height: 32px; flex-wrap: wrap; }
+.sk-outputs-market .head .title { font-family: var(--font-display); font-size: var(--fs-4); flex: 1; }
+.sk-outputs-state { font-family: var(--sk-font-data); font-size: var(--sk-fs-data); padding: 1px 6px; border: 1px solid var(--sk-sheet-rule); border-radius: var(--ctl-radius); }
+.sk-outputs-state.ok { border-color: var(--sk-sheet-text); }
+.sk-outputs-checks { list-style: none; margin: 0; padding: 0; }
+.sk-outputs-checks li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 6px; padding: 2px 0; }
+.sk-outputs-checks .m { font-family: var(--sk-font-data); color: var(--sk-sheet-text); }
+.sk-outputs-checks .d { color: var(--sk-sheet-dim); }
+.sk-outputs-checks li.opt .m { color: var(--sk-sheet-dim); }
+.sk-outputs-warn { border: var(--sk-line) solid var(--sk-sheet-rule); border-left-width: 3px; border-left-color: var(--sk-sheet-text); padding: 8px 12px; margin: 8px 0 12px; line-height: 1.5; }
+.sk-outputs-url { font-family: var(--sk-font-data); font-size: var(--sk-fs-data); overflow-wrap: anywhere; }
+
+/* ---------- the side-column summary (sheet: false) ---------- */
+.sk-outputs-side { display: flex; flex-direction: column; gap: 4px; }
+.sk-outputs-side .sk-outputs-go { display: flex; flex-wrap: wrap; gap: 4px; }
+.sk-outputs-side .sk-outputs-go button { height: 24px; padding: 0 8px; font-size: var(--fs-1); }
+.sk-outputs-side .line { display: flex; gap: 6px; align-items: baseline; color: var(--sk-sheet-dim); font-size: var(--fs-1); }
+.sk-outputs-side .line b { font-weight: 500; color: var(--sk-sheet-text); }
+
+/* ---------- sidebar section: the selected source ---------- */
+.sk-outputs-src { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 12px 8px; }
+.sk-outputs-src button { height: 24px; padding: 0 8px; font-size: var(--fs-1); border-color: var(--chrome-line); }
+.sk-outputs-src .sk-outputs-note { flex-basis: 100%; color: var(--text-dim); font-size: var(--fs-1); line-height: 1.4; }
+
+/* ---------- the presets and brand dialog (a float) ---------- */
+.sk-outputs-dialog { width: min(860px, calc(100vw - 32px)); }
+.sk-outputs-table { width: 100%; border-collapse: collapse; }
+.sk-outputs-table th { text-align: left; font-weight: 600; font-size: var(--fs-1); color: var(--text-dim); padding: 4px 4px; }
+.sk-outputs-table td { padding: 2px 4px; border-top: var(--sk-line) solid var(--sk-rule-float); }
+.sk-outputs-table input, .sk-outputs-table select {
+  font: inherit; font-family: var(--sk-font-data); font-size: var(--sk-fs-data); width: 100%; min-width: 0;
+  height: 24px; padding: 0 4px; color: var(--text); background: transparent;
+  border: 1px solid var(--field-border); border-radius: var(--ctl-radius);
+}
+.sk-outputs-table input[type=checkbox] { width: auto; height: auto; }
+.sk-outputs-table .num { width: 8.5ch; min-width: 8.5ch; }
+.sk-outputs-table td:nth-child(2) input { min-width: 13ch; }
+.sk-outputs-brand { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 8px 20px 4px; }
+.sk-outputs-brand figure { margin: 0; }
+.sk-outputs-brand img { width: 100%; display: block; border: var(--sk-line) solid var(--float-line); }
+.sk-outputs-brand figcaption { color: var(--text-dim); font-size: var(--fs-1); margin-top: 2px; }
+.sk-outputs-pad { padding: 4px 20px; }
+
+@media (max-width: 760px) {
+  /* on the phone the viewer is a 16:11 box; a Publish page needs the room of a page */
+  .viewer:has(.sk-outputs-page) { aspect-ratio: auto; padding: 12px 10px; }
+  .viewer:has(.sk-outputs-page) .section-sheet { position: static; inset: auto; overflow: visible; width: 100%; }
+  .sk-outputs-page { padding: 4px 4px 24px; }
+  .sk-outputs-form { grid-template-columns: 1fr; }
+  .sk-outputs-form label { padding-top: 0; }
+  .sk-outputs-brand { grid-template-columns: 1fr; }
+  .sk-outputs-gallery { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+}
+
+/* the viewer's "no preview" placeholder for files without a picture (STEP, STL, zips) */
+.viewer .placeholder a { color: var(--sk-sheet-text); }
