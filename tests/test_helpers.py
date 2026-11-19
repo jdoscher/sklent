@@ -661,6 +661,7 @@ def test_a_stopped_helper_requeues_and_a_real_failure_fails(fake, settings, api)
     )
     assert r.json() == {"requeued": True}
     assert api.get(f"/api/jobs/{job['id']}", headers=H).json()["status"] == "queued"
+    assert api.get("/api/helpers", headers=H).json()[0]["last_error"] is None  # stopping isn't an error
     api.post("/api/helpers/claim", headers=h, json=_claim_body())
     r = api.post(
         f"/api/helpers/jobs/{job['id']}/fail",

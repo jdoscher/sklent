@@ -415,7 +415,8 @@ def fail(job_id: int, name: str, token_id: str | None, error: str, retry: bool =
     except NotYours:
         return {"ignored": True}
     error = str(error or "the helper failed")[:2000]
-    _touch(name, last_error=error[:500], current_job=None)
+    # a helper that was stopped isn't in trouble: only a real failure is its last error
+    _touch(name, current_job=None, **({} if retry else {"last_error": error[:500]}))
     max_attempts = int(_setting("helpers_max_attempts") or 2)
     if retry and (lease["attempts"] or 0) < max_attempts:
         requeue(job_id, f"{name}: {error}; queued again")
