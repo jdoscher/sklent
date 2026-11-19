@@ -426,9 +426,15 @@ def _render(settings, source: dict, design: dict, progress) -> str:
     out_dir = settings.renders_dir / design["id"] / design["blob_sha"][:12]
     shutil.rmtree(out_dir, ignore_errors=True)
     opts = get_options()
+    all_settings = get_all_settings()
+    try:  # views: this render's outputs choice and the design's highlight (F17, F20)
+        from .features.views import render_overrides
+        opts, all_settings = render_overrides(design["id"], opts, all_settings)
+    except ImportError:
+        pass
     outputs, report = render_set(local, out_dir, stem, opts,
                                  lambda f, m: progress(0.02 + 0.88 * f, m),
-                                 settings=get_all_settings())
+                                 settings=all_settings)
     (out_dir / "report.json").write_text(json.dumps(report, indent=2))
     shutil.rmtree(work, ignore_errors=True)
 

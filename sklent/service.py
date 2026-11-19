@@ -57,6 +57,14 @@ def render_report(folder: Path | None) -> dict[str, Any] | None:
     return out
 
 
+def _views(d: dict) -> dict[str, Any] | None:
+    try:
+        from .features.views.api import design_views
+    except ImportError:
+        return None
+    return design_views(d)
+
+
 def design_out(d: dict) -> dict[str, Any]:
     name = d["path"].rsplit("/", 1)[-1]
     base = f"/api/designs/{d['id']}/files/"
@@ -91,6 +99,7 @@ def design_out(d: dict) -> dict[str, Any]:
         "kist_folder_id": d["kist_folder_id"],
         "kist_items": d["kist_items"],
         "report": render_report(folder),
+        "views": _views(d),  # views area: quick-check still URL, bed fit (F17, F16)
     }
 
 
