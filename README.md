@@ -5,6 +5,26 @@ it renders every [SolidCraft](https://github.com/tangency-labs/solidcraft) desig
 STEP, STL and 3MF file) it finds into a media set, then files the set into a
 [Kist](https://github.com/jdoscher/kist) folder.
 
+## What's new in 0.2.1
+
+- **GPU control.** Settings → **Rendering** picks where this server renders: on the GPU
+  (default, at most `render_gpu_processes` SolidCraft processes at once, default 1), in
+  software (Mesa lavapipe on the CPU: no GPU load at all), or off. Quiet hours (e.g.
+  `22:00-07:00`) either hold renders for helpers or switch to software.
+- **Render helpers.** Another machine with SolidCraft (a Linux box with
+  `docker-compose.helper.yml`, or natively on a Mac) can take every render; this server keeps
+  scans, filing into Kist and the revision history. See [Render helpers](#render-helpers).
+- Each set's `report.json` and the drawing sheet's title block say where it was rendered
+  (`renderer: gpu|software`, `host`).
+
+### Upgrading from 0.2.0
+
+Rebuild the image (`docker compose up -d --build`); the database gains its new columns and
+tables on start. Nothing changes until you change it: the renderer stays `gpu`, but **at most
+one SolidCraft process now uses the GPU at once** (`render_gpu_processes`, default 1;
+0.2.0 used up to `SK_RENDER_PROCESSES` for big designs). Raise it in Settings → Rendering
+if the GPU isn't shared. Set `TZ` in `.env` before you use quiet hours.
+
 ## What's new in 0.2
 
 | area | what you get | on by default |
@@ -193,6 +213,11 @@ Server settings go in `.env`:
 | `SK_SCAN_INTERVAL_MINUTES` | `360` | Periodic re-scan; `0` turns it off |
 | `SK_RENDER_PROCESSES` | `4` | Most SolidCraft processes per design (see below) |
 | `SK_RENDER_GID` | `992` | Group owning `/dev/dri/renderD128` on the host |
+| `SK_RENDERER` | `gpu` | Where this server renders: `gpu`, `software` (Mesa lavapipe) or `off` (helpers only); Settings → Rendering overrides it |
+| `TZ` | `UTC` | The time zone of quiet hours |
+| `SK_HOST_NAME` | the host name | This machine's name in `report.json` |
+| `SK_SOLIDCRAFT_CLI`, `SK_FFMPEG` | `solidcraft-cli`, `ffmpeg` | The programs, for a native helper (full paths on a Mac) |
+| `SK_LVP_ICD` | found under `/usr/share/vulkan/icd.d` | Mesa lavapipe's Vulkan ICD, for software rendering |
 
 Render and feature settings live in the app: the UI's **Settings**, `GET/PUT
 /api/settings`, MCP `set_render_settings` / `set_views_settings`, and per repo in
@@ -237,6 +262,76 @@ Render and feature settings live in the app: the UI's **Settings**, `GET/PUT
 | `outputs_brand_title_card`, `_end_card`, `_card_text`, `_card_seconds` | off, off, none, `1.5` | Cards on exported clips |
 | `outputs_review_share_links` | off | Allow Kist share links (public pages, made only on a click) |
 | `outputs_review_proofing`, `_share_days`, `_allow_download` | on, `30`, off | Share link details |
+| `render_device` | `SK_RENDERER` (`gpu`) | `gpu`, `software` or `off` (helpers only) |
+| `render_gpu_processes` | `1` | Most SolidCraft processes on the GPU at once (software mode: `SK_RENDER_PROCESSES`) |
+| `render_quiet_hours`, `render_quiet_mode` | none, `wait` | e.g. `22:00-07:00` (server time, `TZ`); `wait` leaves renders to helpers, `software` renders on the CPU |
+| `helpers_fallback_minutes` | `30` | With a helper around, this server takes a render only once it has waited this long; `0` never |
+| `helpers_seen_window` | `10` min | A helper counts as around if it asked for work this recently |
+| `helpers_require_same_solidcraft` | on | Refuse (409) a helper whose SolidCraft differs from this server's |
+| `helpers_max_attempts`, `helpers_lease_seconds` | `2`, `300` | Claims of one job before it fails; a helper's lease, renewed by its progress |
+
+The `render_*` and `helpers_*` settings are server-side only: `.sklent.yaml` can't change them.
+
+## Render helpers
+
+A render helper is another machine with SolidCraft that renders for this server. It asks for
+work, downloads the design (and its linked files) from this server, renders the set with this
+server's settings and every feature step, and uploads it; this server then files it into Kist,
+links the versions and keeps the revision history, exactly as for its own renders. Scans stay
+here. A helper needs no database, no data folder and no forge token.
+
+**Its token.** Settings → **Helpers** → *Create helper token* (or `sklent token create NAME
+--scope helper`) makes a token that starts with `skh`. It may call only the helper protocol
+(`/api/helpers/claim` and `/api/helpers/jobs/...`): every other route and all of MCP answer
+403. The panel shows the `.env.helper` lines once; revoke the token in Settings → Tokens.
+
+**Another Linux box** (Intel or AMD GPU through Mesa, or software):
+
+```bash
+git clone <this repo> sklent && cd sklent
+cp .env.example.helper .env.helper    # paste the lines from Settings -> Helpers
+docker compose --env-file .env.helper -f docker-compose.helper.yml up -d
+docker compose -f docker-compose.helper.yml logs -f   # "asking ... for work"
+```
+
+The helper must run the same SolidCraft version as the server (the image pins it), or its
+claims are refused with 409 and the reason (`helpers_require_same_solidcraft`). Stopping it
+(`docker compose -f docker-compose.helper.yml stop`, Ctrl-C) reports the job it had as
+"helper stopped", and the server queues it again. A helper that vanishes loses its job when
+its lease runs out (`helpers_lease_seconds`, 300 s, renewed by every progress report); a
+job is claimed at most `helpers_max_attempts` (2) times, then fails.
+
+**Natively** (e.g. a Mac with SolidCraft's app): `pip install` this repo, then
+
+```bash
+SK_SOLIDCRAFT_CLI=/Applications/SolidCraft.app/Contents/MacOS/solidcraft-cli \
+SK_FFMPEG=/opt/homebrew/bin/ffmpeg \
+sklent helper --url http://sklent-host:8090 --token-file ~/.config/sklent-helper.token --name mac
+```
+
+Options: `--renderer gpu|software`, `--processes N` (frames of one design in parallel),
+`--max-bodies N` (leave bigger designs to others), `--once` (one job, then exit). Env
+equivalents: `SK_HELPER_URL`, `SK_HELPER_TOKEN`, `SK_HELPER_NAME`, `SK_RENDERER`,
+`SK_RENDER_PROCESSES`.
+
+**This server's GPU** (Settings → **Rendering**):
+
+- *Renderer*: `GPU`; `Software (CPU)`, which runs SolidCraft on Mesa lavapipe (slower, the
+  same pictures, no GPU load: other GPU work on the machine is left alone); or `Off`, where
+  this server never renders and jobs wait for helpers.
+- *GPU processes*: the most SolidCraft processes on the GPU at once (default 1). Big designs
+  used to fan out to `SK_RENDER_PROCESSES`; that cap still applies in software mode.
+- *Quiet hours* (`22:00-07:00`, this server's local time, `TZ`): during them, *Wait* takes no
+  render here (the sidebar says "Quiet hours: helpers only"), *Render in software* switches
+  to the CPU.
+- *Helper fallback*: with no helper seen in the last 10 minutes this server renders at once.
+  With one around, it takes a render only once the job is `helpers_fallback_minutes` old
+  (30; 0 = never), outside quiet hours (or in software mode) and when the renderer isn't off.
+  Scans never wait behind a render held for a helper.
+
+Settings → **Helpers** lists every helper with its last contact, SolidCraft version,
+renderer, current job and done count; the job log says "on <helper>", and the title block
+says where each set was rendered.
 
 ## Inputs and access
 
@@ -483,6 +578,7 @@ Tools marked **R** only read; a viewer token may call those and nothing else.
 | `set_listing_details` | Title, summary, licence, print notes, tags | |
 | `attach_photo` / `list_photos` | Real print photos (base64 in) | / R |
 | `make_review_board`, `create_share_link`, `revoke_share_link` | Kist board; public share link only when the setting allows and the user asks | |
+| `list_helpers` | Render helpers (last seen, version, renderer, current job, done count) and what this server does with renders now | R (admin token) |
 
 With Kist's own MCP connected as well, an agent can go on to browse, view and tag the
 filed sets there.
@@ -491,7 +587,8 @@ filed sets there.
 
 Core: `/api/sources`, `/api/designs`, `/api/designs/{id}/render`, `/api/designs/{id}/files/{name}`,
 `/api/render-url`, `/api/jobs`, `POST /api/jobs/{id}/cancel`, `/api/settings`, `/api/status`
-(`sklent/api.py`). Viewer tokens get every `GET` (except `/api/tokens`) and nothing else.
+(`sklent/api.py`). Viewer tokens get every `GET` (except `/api/tokens` and `/api/helpers`) and
+nothing else; helper tokens only the helper protocol.
 
 - **Inputs** (`sklent/features/inputs/`): `GET /api/whoami`, `GET /api/designs/{id}/inputs`,
   `GET|POST /api/sources/{id}/review-comment`, `GET|POST /api/classes`,
@@ -512,11 +609,21 @@ Core: `/api/sources`, `/api/designs`, `/api/designs/{id}/render`, `/api/designs/
   `…/outputs/listing[/{market}[/text]]`, `…/outputs/photos[/{photo}[/file]]`,
   `…/outputs/review[/board|/share]`, the same `page` and `review` routes under
   `/api/sources/{id}/outputs/`, and `/api/outputs/{brand,brand/mark,brand/preview,readiness,marketplaces,presets/defaults}`.
+- **Helpers** (`sklent/features/helpers`, 0.2.1): `GET /api/helpers` (admin), `GET
+  /api/render-state` (device, quiet hours, why renders wait). The helper protocol, for helper
+  tokens (and the admin token): `POST /api/helpers/claim` `{name, solidcraft_version, renderer,
+  gpu, mem_gb, max_bodies?}` (204 nothing to do, 409 a different SolidCraft, else `{job,
+  design, settings_snapshot, design_file, stem, lease_s}`), then under
+  `/api/helpers/jobs/{id}/` with `?name=`: `GET inputs.tar`, `GET repo-file?path=`, `POST
+  progress` `{fraction, message}` → `{cancel}`, `POST result` (a tar of the set whose first
+  member is `.sklent-manifest.json` `{outputs, files: {name: size}}`), `POST fail` `{error,
+  retry?}`.
 
 Each design in `/api/designs` carries:
 
 - `blob` (its file's git blob SHA, the sheet's revision) and `report`: `{bodies,
-  hidden_bodies, bounds_mm, palette, frame_ms, processes, timings_s}` from its newest set's
+  hidden_bodies, bounds_mm, palette, frame_ms, processes, timings_s, renderer, adapter, host}`
+  from its newest set's
   `report.json` (`bounds_mm` is `[[x, y, z] min, [x, y, z] max]`), or `null` before the first
   render;
 - `revisions`: `{count, tagged, tags}` (kept versions, how many are tagged, the current

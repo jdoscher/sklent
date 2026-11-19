@@ -1,5 +1,70 @@
 # Changelog
 
+## [0.2.1] - unreleased
+
+GPU control and render helpers: a shared NAS GPU stays usable, and other machines can take
+the renders.
+
+### Upgrading from 0.2.0
+
+- Rebuild the image (`docker compose up -d --build`). The database gains `jobs.helper`,
+  `jobs.attempts`, the token `scope` column and the `helpers` / `helper_leases` tables on
+  start; tokens made before are viewer tokens. Back up `data/sklent.db` first as usual.
+- **At most one SolidCraft process uses the GPU at once now** (`render_gpu_processes`,
+  default 1). 0.2.0 fanned big designs out to `SK_RENDER_PROCESSES`; raise the cap in
+  Settings → Rendering if the GPU isn't shared.
+- New optional `.env` keys: `SK_RENDERER` (`gpu`), `TZ` (quiet hours), `SK_HOST_NAME`,
+  `SK_FFMPEG`, `SK_LVP_ICD`. The image adds `tzdata`.
+- Nothing else changes until you turn it on: no helper is trusted until you make a helper
+  token, and quiet hours are empty.
+
+### Render control
+
+- `render_device`: `gpu` (default from `SK_RENDERER`), `software` (SolidCraft on Mesa
+  lavapipe: `SOLIDCRAFT_GPU=software`, the Vulkan loader limited to the lavapipe ICD, GL
+  forced to llvmpipe, so the process never opens the GPU) or `off` (this server never
+  renders; jobs wait for helpers; scans, filing and the UI carry on).
+- `render_gpu_processes` (1) caps the frame fan-out in GPU mode; software mode keeps
+  `SK_RENDER_PROCESSES`.
+- Quiet hours `render_quiet_hours` (`22:00-07:00`, local time) with `render_quiet_mode`
+  `wait` (helpers only; the sidebar says "Quiet hours: helpers only") or `software`.
+- `report.json` records what SolidCraft actually landed on (`renderer: gpu|software`, the
+  `adapter`) and the `host` (this server or the helper's name); the title block shows it as
+  "Rendered on".
+- `sklent render --renderer software`; `SK_FFMPEG` for every ffmpeg call.
+
+### Render helpers
+
+- Helper tokens: `inputs_viewer_tokens` gains a `scope` (`viewer` | `helper`). A helper token
+  (`skh…`) may call only `/api/helpers/claim` and `/api/helpers/jobs/...`; every other route
+  and all of MCP answer 403 (a test walks every route and tool).
+- The protocol: claim (oldest queued render, leased for `helpers_lease_seconds`; 409 when the
+  helper's SolidCraft differs, `helpers_require_same_solidcraft`), `inputs.tar` (the design
+  and its linked files, so a helper needs no forge token), `repo-file` (a step's `bom.yaml`
+  through the server), progress (renews the lease, answers `cancel`), result (a tar of the set
+  checked against its manifest: plain files only, no path traversal, sizes must match), fail
+  (`retry` for a stopped helper). An expired lease requeues the job, at most
+  `helpers_max_attempts` (2) claims.
+- `jobs._render` is now `prepare_render` (download, options, settings snapshot) →
+  `render_here` → `finish_render` (promote, Kist filing, version links, design row, keep
+  policy); a helper's upload goes through the same `finish_render`. Staging, promote and
+  cancel semantics are unchanged: a cancelled helper job leaves the current set in place.
+- Scheduling: the host takes a queued render at once when no helper asked for work in the
+  last `helpers_seen_window` (10) minutes; otherwise once the job is `helpers_fallback_minutes`
+  (30; 0 = never) old, and only when `render_device` isn't off and it isn't quiet hours (or
+  quiet mode is software). A held render never blocks the scans behind it, and a design never
+  renders twice at once.
+- `sklent helper --url --token-file --name [--renderer] [--processes] [--max-bodies]
+  [--once]` (env `SK_HELPER_URL`, `SK_HELPER_TOKEN`, `SK_HELPER_NAME`, `SK_RENDERER`,
+  `SK_RENDER_PROCESSES`): claims with a 10→60 s idle backoff, renders with every feature step
+  and no database (a test runs every step with the database off limits), streams progress,
+  uploads, cleans up; SIGTERM or Ctrl-C reports "helper stopped" so the job requeues.
+  `docker-compose.helper.yml` runs it from the same image with `/dev/dri`;
+  `.env.example.helper` documents it.
+- Registry: `GET /api/helpers` (admin), MCP `list_helpers` (read-only, admin token),
+  `GET /api/render-state`. Settings → **Rendering** and **Helpers** (with *Create helper
+  token*, which shows the `.env.helper` lines once); job rows say "on <helper>".
+
 ## [0.2.0] - unreleased
 
 The 0.2 review build: Kist 2.0's design system, then six feature areas built in parallel on
