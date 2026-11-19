@@ -179,7 +179,7 @@ function titleCells(d, sheets, current) {
   const [stem] = splitExt(d.name);
   const idx = sheets.indexOf(current) + 1;
   const pal = state.status.palettes.find((p) => p.name === (spec.palette || r.palette));
-  const styles = [...new Set(d.files.map((f) => f.style))].join(' + ');
+  const styles = [...new Set(d.files.map((f) => f.style))].filter((x) => x === 'shaded' || x === 'wireframe').join(' + ');
   const env = envelope(spec.bounds_mm || r.bounds_mm);
   const bodies = spec.bodies ?? r.bodies;
   const mass = fmtMass(spec.mass_g ?? (spec.mass_kg != null ? spec.mass_kg * 1000 : null));

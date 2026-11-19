@@ -45,8 +45,9 @@ def entries(source_id: str) -> list[dict[str, Any]]:
         f = hero_file(s["files"])
         if not f or not (s["dir"] / f["file"]).is_file():
             continue
+        commit = (d.get("spec") or {}).get("commit") or d.get("commit") or ""
         out.append({"id": d["id"], "name": d["name"], "path": d["path"], "repo": d["repo"],
-                    "commit": (s.get("commit_sha") or "")[:7], "rendered_at": s.get("rendered_at"),
+                    "commit": commit[:7], "rendered_at": s.get("rendered_at"),
                     "report": s.get("report") or {}, "spec": (d.get("spec") or {}), "hero": s["dir"] / f["file"]})
     out.sort(key=lambda e: (e["repo"], e["path"]))
     return out

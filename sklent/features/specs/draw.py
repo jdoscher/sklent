@@ -226,7 +226,7 @@ class Sheet:
             self.line((a[0] - over, y), (b[0] + over, y), c)
             for x in (a[0], b[0]):
                 self.line((x - tick, y + tick), (x + tick, y - tick), self.ink.text)
-            self.text(((a[0] + b[0]) / 2, y - 3 * u), label, f, self.ink.text, anchor="mb")
+            self.text(((a[0] + b[0]) / 2, y - max(3 * u, round(size * 0.3))), label, f, self.ink.text, anchor="mb")
         else:
             sgn = -1 if side == "left" else 1
             x = (min(a[0], b[0]) if sgn < 0 else max(a[0], b[0])) + sgn * offset
@@ -236,7 +236,7 @@ class Sheet:
             for yy in (a[1], b[1]):
                 self.line((x - tick, yy + tick), (x + tick, yy - tick), self.ink.text)
             th = f.getbbox(label)[3]
-            self.rotated_text((x - 3 * u - th / 2 - 2, (a[1] + b[1]) / 2), label, f, self.ink.text)
+            self.rotated_text((x - max(3 * u, round(size * 0.3)) - th / 2, (a[1] + b[1]) / 2), label, f, self.ink.text)
 
     def save(self, path: Path, **kw) -> Path:
         self.im.save(path, **kw)
