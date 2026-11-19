@@ -119,7 +119,9 @@ def helper_seen_since(minutes: int) -> bool:
     cutoff = (datetime.now(UTC) - timedelta(minutes=minutes)).isoformat(timespec="seconds")
     try:
         with db.connect() as conn:
-            return conn.execute("SELECT 1 FROM helpers WHERE last_seen >= ? LIMIT 1", [cutoff]).fetchone() is not None
+            # a helper refused for its SolidCraft version can't take a job: it doesn't count
+            return conn.execute("SELECT 1 FROM helpers WHERE last_seen >= ? AND refused IS NULL LIMIT 1",
+                                [cutoff]).fetchone() is not None
     except Exception:  # noqa: BLE001 - no table yet
         return False
 

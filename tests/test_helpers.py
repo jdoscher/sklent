@@ -555,6 +555,7 @@ def test_a_different_solidcraft_is_refused_with_409(fake, settings, api):
     r = api.post("/api/helpers/claim", headers=h, json=_claim_body(version="0.43.0"))
     assert r.status_code == 409 and "0.44.1" in r.json()["detail"] and "0.43.0" in r.json()["detail"]
     assert api.get("/api/helpers", headers=H).json()[0]["refused"]
+    assert control.host_plan()["take"] == "all"  # a refused helper isn't one the host waits for
     with db.connect() as conn:
         assert conn.execute("SELECT status FROM jobs").fetchone()[0] == "queued"
     jobs.set_options({"helpers_require_same_solidcraft": False})
