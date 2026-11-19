@@ -509,7 +509,10 @@ def test_claim_render_upload_files_the_set_like_a_host_render(fake, settings, ap
 
     files, outputs = _good_result()
     up = api.post(
-        f"/api/helpers/jobs/{job['id']}/result", headers=h, params={"name": "gpu-box"}, content=_stage_tar(files, outputs)
+        f"/api/helpers/jobs/{job['id']}/result",
+        headers=h,
+        params={"name": "gpu-box"},
+        content=_stage_tar(files, outputs),
     )
     assert up.status_code == 200, up.text
     assert up.json()["done"] and "filed 1 in Kist" in up.json()["message"]
@@ -600,7 +603,9 @@ def test_bad_uploads_are_refused_and_fail_the_job(fake, settings, api):
         info = tarfile.TarInfo("report.json")
         info.size = 2
         t.addfile(info, io.BytesIO(b"{}"))
-    r = api.post(f"/api/helpers/jobs/{job['id']}/result", headers=h, params={"name": "gpu-box"}, content=buf.getvalue())
+    r = api.post(
+        f"/api/helpers/jobs/{job['id']}/result", headers=h, params={"name": "gpu-box"}, content=buf.getvalue()
+    )
     assert r.status_code == 422 and server.MANIFEST in r.json()["detail"]
 
 
@@ -817,14 +822,18 @@ def test_the_client_renders_every_feature_step_without_a_database(settings, api,
         monkeypatch.setattr(render, name, ti._encode)
     from sklent.features.revisions import timelapse
 
-    monkeypatch.setattr(timelapse, "encode", lambda frames, mp4, gif, w: (mp4.write_bytes(b"m"), gif.write_bytes(b"g")))
+    monkeypatch.setattr(
+        timelapse, "encode", lambda frames, mp4, gif, w: (mp4.write_bytes(b"m"), gif.write_bytes(b"g"))
+    )
     from sklent.features.views import steps as vsteps
 
     monkeypatch.setattr(vsteps.R, "encode", ti._encode)
     monkeypatch.setattr(vsteps.R, "encode_gif", ti._encode)
     on = ti._every_setting_on()
     on.update(seconds=2, fps=24, styles=["shaded"], outputs=["social", "hires"])
-    jobs.set_options({k: v for k, v in on.items() if k in jobs._EXTRA or k in ("seconds", "fps", "styles", "outputs")})
+    jobs.set_options(
+        {k: v for k, v in on.items() if k in jobs._EXTRA or k in ("seconds", "fps", "styles", "outputs")}
+    )
     did = _design()
     job = jobs.enqueue("render", design_id=did)
 
@@ -923,6 +932,7 @@ def test_host_name_in_a_container_is_server(monkeypatch, settings):
     assert render.host_name() == "nas"
     monkeypatch.setenv("SK_HOST_NAME", "disk")
     from sklent import config
+
     config.get_settings.cache_clear()
     assert render.host_name() == "disk"
 
