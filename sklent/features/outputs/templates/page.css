@@ -1,0 +1,51 @@
+/* Sklent project page: the drafting look, offline. Plain colours here are exported page
+   pixels, not the app's UI (the app's CSS uses Kist tokens only). */
+@font-face { font-family: "Inter"; src: url("$fonts/inter-latin-wght-normal.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Instrument Serif"; src: url("$fonts/instrument-serif-latin-400-normal.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "JetBrains Mono"; src: url("$fonts/jetbrains-mono-latin-wght-normal.woff2") format("woff2"); font-weight: 100 800; font-display: swap; }
+:root {
+  --paper: #f6f6f4; --sheet: #ffffff; --ink: #282828; --muted: #666666; --rule: #d4d4d0; --frame: #282828;
+  --ui: "Inter", system-ui, sans-serif; --display: "Instrument Serif", Georgia, serif; --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --paper: #1e1e1e; --sheet: #262626; --ink: #ececec; --muted: #a0a0a0; --rule: #444444; --frame: #ececec; }
+}
+* { box-sizing: border-box; }
+html { background: var(--paper); color: var(--ink); font: 15px/1.5 var(--ui); }
+body { margin: 0; padding: 24px; }
+a { color: inherit; }
+.sheet { max-width: 1180px; margin: 0 auto; background: var(--sheet); border: 1px solid var(--frame); padding: 32px; }
+.head h1 { font: 400 44px/1.1 var(--display); margin: 0 0 6px; }
+.sub, .mono, dd, td.n, .tb .v { font-family: var(--mono); font-size: 13px; }
+.sub { color: var(--muted); margin: 0 0 24px; overflow-wrap: anywhere; }
+.summary { max-width: 70ch; margin: 0 0 24px; }
+h2 { font: 600 11px/1 var(--ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+     border-bottom: 1px solid var(--rule); padding-bottom: 6px; margin: 32px 0 12px; }
+figure { margin: 0; }
+img, video { display: block; max-width: 100%; height: auto; }
+.hero img { width: 100%; border: 1px solid var(--rule); }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.gallery img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border: 1px solid var(--rule); }
+figcaption { font: 12px/1.4 var(--mono); color: var(--muted); margin-top: 4px; }
+.turntable video { width: 100%; border: 1px solid var(--rule); }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
+dt { color: var(--muted); } dd { margin: 0; overflow-wrap: anywhere; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 600; color: var(--muted); }
+td.n { white-space: nowrap; }
+.notes { white-space: pre-wrap; }
+.tb { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--frame); margin-top: 40px; }
+.tb div { padding: 6px 10px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); min-width: 0; }
+.tb .w2 { grid-column: span 2; } .tb .w4 { grid-column: span 4; }
+.tb .k { display: block; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.tb .v { overflow-wrap: anywhere; }
+.tb .t { font: 400 22px/1.2 var(--display); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+.grid a { text-decoration: none; display: block; }
+.grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border: 1px solid var(--rule); }
+.grid .name { font: 400 20px/1.2 var(--display); margin-top: 6px; }
+.note { color: var(--muted); font-size: 13px; }
+@media (max-width: 760px) { body { padding: 0; } .sheet { border: 0; padding: 18px; } .cols { grid-template-columns: 1fr; }
+  .tb { grid-template-columns: 1fr 1fr; } .tb .w4 { grid-column: span 2; } }

@@ -15,6 +15,7 @@ import importlib
 from types import ModuleType
 
 MODULES: list[str] = [
+    "outputs",  # O: outputs and publishing (F5 F6 F7 F13 F19 F23 F26)
 ]
 
 _loaded: list[ModuleType] = []
