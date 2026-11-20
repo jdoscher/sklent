@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+- Docs site at sklent.app: MkDocs Material pages built from `docs/` (`site/mkdocs.yml`), with
+  real render outputs and screenshots of public SolidCraft designs, published by hand with the
+  `Docs site` workflow (`.github/workflows/docs.yml`). The README links to it.
+
 ## [0.2.1] - unreleased
 
 GPU control and render helpers: a shared NAS GPU stays usable, and other machines can take

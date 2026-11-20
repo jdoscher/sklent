@@ -1,0 +1,27 @@
+{#-
+  The footer as a drawing's title block. Every cell carries a real value (docs/design.md,
+  the truth rule); `extra.version_label` is bumped with each release.
+-#}
+<div class="md-copyright sk-tb" role="contentinfo">
+  <div class="sk-tb__cell sk-tb__cell--wide">
+    <span class="sk-tb__k">Title</span>
+    <span class="sk-tb__title">Sklent</span>
+    <span class="sk-tb__v">sklent.app</span>
+  </div>
+  <div class="sk-tb__cell">
+    <span class="sk-tb__k">Version</span>
+    <span class="sk-tb__v">{{ config.extra.version_label }}</span>
+  </div>
+  <div class="sk-tb__cell sk-tb__cell--right">
+    <span class="sk-tb__k">Licence</span>
+    <span class="sk-tb__v">MIT</span>
+  </div>
+  <div class="sk-tb__cell sk-tb__cell--wide">
+    <span class="sk-tb__k">Source</span>
+    <a class="sk-tb__v" href="{{ config.repo_url }}">{{ config.repo_name }}</a>
+  </div>
+  <div class="sk-tb__cell sk-tb__cell--wide">
+    <span class="sk-tb__k">Example renders</span>
+    <a class="sk-tb__v" href="{{ 'credits/' | url }}">tangency-labs/solidcraft · Apache-2.0</a>
+  </div>
+</div>

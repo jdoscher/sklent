@@ -1,0 +1,302 @@
+/* Sklent's docs site: Kist's docs look (same palette, same Material set-up) plus a small
+   drafting layer used sparingly: a faint engineering grid in the hero only, mono numbers in
+   spec strips, hairline rules and a title-block footer. The truth rule from docs/design.md
+   applies: every drafting line carries a real value or separates two real things.
+   Monochrome: the accent is the ink; no hue anywhere in the chrome.
+   Fonts are self-hosted, so the site makes no third-party request. */
+
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("fonts/inter-latin-wght-normal.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("fonts/jetbrains-mono-latin-wght-normal.woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root, body {
+  --md-text-font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --md-code-font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sk-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sk-display: "Instrument Serif", Georgia, serif;
+}
+
+[data-md-color-scheme="default"] {
+  --sk-on-accent: #FFFFFF;
+  --md-default-bg-color: #FAF9F6;
+  --md-default-fg-color: #1C1B19;
+  --md-default-fg-color--light: #5F5D57;
+  --md-default-fg-color--lighter: #8A8780;
+  --md-primary-fg-color: #FAF9F6;
+  --md-primary-fg-color--light: #FAF9F6;
+  --md-primary-fg-color--dark: #F0EEE9;
+  --md-primary-bg-color: #1C1B19;
+  --md-primary-bg-color--light: #5F5D57;
+  --md-accent-fg-color: #2B2B2B;
+  --md-accent-fg-color--transparent: rgba(43, 43, 43, .08);
+  --md-typeset-a-color: #2B2B2B;
+  --md-code-fg-color: #2B2B2B;
+  --md-code-bg-color: #F0EEE9;
+  --md-footer-bg-color: #1C1C1A;
+  --md-footer-fg-color: #ECEAE4;
+  --md-footer-fg-color--light: #9C9A93;
+  --md-footer-fg-color--lighter: #6F6D67;
+}
+
+[data-md-color-scheme="slate"] {
+  --sk-on-accent: #131312;
+  --md-hue: 40;
+  --md-default-bg-color: #131312;
+  --md-default-fg-color: #ECEAE4;
+  --md-default-fg-color--light: #9C9A93;
+  --md-default-fg-color--lighter: #6F6D67;
+  --md-primary-fg-color: #1C1C1A;
+  --md-primary-fg-color--light: #1C1C1A;
+  --md-primary-fg-color--dark: #131312;
+  --md-primary-bg-color: #ECEAE4;
+  --md-primary-bg-color--light: #9C9A93;
+  --md-accent-fg-color: #ECEAE4;
+  --md-accent-fg-color--transparent: rgba(236, 234, 228, .1);
+  --md-typeset-a-color: #ECEAE4;
+  --md-code-bg-color: #1C1C1A;
+  --md-code-fg-color: #DAD8D2;
+  --md-footer-bg-color: #0D0D0C;
+}
+
+/* code: ink only, weight and tone instead of colours */
+[data-md-color-scheme] {
+  --md-code-hl-color: color-mix(in srgb, var(--md-default-fg-color) 10%, transparent);
+  --md-code-hl-color--light: color-mix(in srgb, var(--md-default-fg-color) 6%, transparent);
+  --md-code-hl-number-color: var(--md-default-fg-color);
+  --md-code-hl-special-color: var(--md-default-fg-color);
+  --md-code-hl-function-color: var(--md-default-fg-color);
+  --md-code-hl-constant-color: var(--md-default-fg-color);
+  --md-code-hl-keyword-color: var(--md-default-fg-color);
+  --md-code-hl-string-color: var(--md-default-fg-color--light);
+  --md-code-hl-name-color: var(--md-code-fg-color);
+  --md-code-hl-operator-color: var(--md-default-fg-color--light);
+  --md-code-hl-punctuation-color: var(--md-default-fg-color--light);
+  --md-code-hl-comment-color: var(--md-default-fg-color--lighter);
+  --md-code-hl-generic-color: var(--md-default-fg-color--light);
+  --md-code-hl-variable-color: var(--md-default-fg-color);
+  --md-typeset-mark-color: color-mix(in srgb, var(--md-default-fg-color) 16%, transparent);
+  --sk-line: color-mix(in srgb, var(--md-default-fg-color) 14%, transparent);
+  --sk-line-strong: color-mix(in srgb, var(--md-default-fg-color) 32%, transparent);
+  --sk-grid: color-mix(in srgb, var(--md-default-fg-color) 6%, transparent);
+}
+
+.md-header { border-bottom: 1px solid var(--sk-line); box-shadow: none; }
+.md-typeset h1, .md-typeset h2, .md-header__topic, .sk-hero__line {
+  font-family: var(--sk-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+.md-typeset h1 { font-size: 2.6em; color: var(--md-default-fg-color); }
+.md-typeset h2 { font-size: 1.8em; }
+.md-typeset hr { border-bottom: 1px solid var(--sk-line); }
+.md-typeset table:not([class]) { border: 1px solid var(--sk-line); box-shadow: none; }
+.md-typeset table:not([class]) th { border-bottom: 1px solid var(--sk-line-strong); }
+.md-typeset table:not([class]) td { border-top: 1px solid var(--sk-line); }
+
+/* admonitions: hairline and ink, never Material's colours */
+.md-typeset .admonition, .md-typeset details {
+  border: 1px solid var(--sk-line-strong);
+  border-left-width: 1px;
+  box-shadow: none;
+  background: transparent;
+}
+.md-typeset .admonition > .admonition-title, .md-typeset details > summary {
+  background: color-mix(in srgb, var(--md-default-fg-color) 5%, transparent);
+  border-bottom: 1px solid var(--sk-line);
+}
+.md-typeset .admonition > .admonition-title::before, .md-typeset details > summary::before {
+  background-color: var(--md-default-fg-color);
+}
+.md-typeset details > summary::after { background-color: var(--md-default-fg-color--light); }
+
+/* tabs: the active label is ink; its indicator is a neutral fill, not a bar */
+.md-typeset .tabbed-labels > label:hover { color: var(--md-default-fg-color); }
+.md-typeset .tabbed-set > input:checked + label,
+.md-typeset .tabbed-labels > label.tabbed-label--active { color: var(--md-default-fg-color); }
+.md-typeset .tabbed-labels::before { display: none; }
+.md-typeset .tabbed-labels > label {
+  border-radius: 6px;
+  padding: .35em .9em;
+  margin: .3em .2em .3em 0;
+  border: 1px solid transparent;
+}
+.js .md-typeset .tabbed-set > input:checked + label,
+.md-typeset .tabbed-set > input:checked + label {
+  background: color-mix(in srgb, var(--md-default-fg-color) 7%, transparent);
+  border-color: var(--sk-line-strong);
+}
+
+/* landing page */
+.sk-hero {
+  position: relative;
+  text-align: center;
+  margin: 0 -0.8rem 2rem;
+  padding: 2.2rem 0.8rem 1.2rem;
+  /* the drafting grid: hero only, 24 px cells like the app's canvas */
+  background-image:
+    linear-gradient(to right, var(--sk-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--sk-grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: center top;
+  border-bottom: 1px solid var(--sk-line);
+}
+.md-typeset h1.sk-hero__line { font-size: 3.4rem; line-height: 1.05; margin: .5rem 0 .6rem; }
+.sk-hero__sub { color: var(--md-default-fg-color--light); font-size: 1.05rem; max-width: 40rem; margin: 0 auto 1.2rem; }
+.sk-hero img, .sk-shot {
+  border-radius: 10px;
+  border: 1px solid var(--sk-line);
+  background: var(--md-default-bg-color);
+}
+.sk-hero p:last-child { margin-bottom: 0; }
+
+/* proof strip: a title block's row of three cells */
+.sk-proof {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  border: 1px solid var(--sk-line-strong);
+  border-radius: 2px;
+  margin: 1.5rem 0;
+}
+.sk-proof > div { padding: .9rem 1.1rem 1rem; border-left: 1px solid var(--sk-line); }
+.sk-proof > div:first-child { border-left: 0; }
+.sk-proof .sk-k {
+  display: block;
+  font: 500 .62rem/1.2 var(--sk-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--md-default-fg-color--light);
+  margin-bottom: .35rem;
+}
+.sk-proof strong {
+  display: block;
+  font-family: var(--sk-display);
+  font-weight: 400;
+  font-size: 1.45rem;
+  line-height: 1.15;
+  margin-bottom: .3rem;
+}
+.sk-proof p { margin: 0; font-size: .74rem; color: var(--md-default-fg-color--light); }
+@media (max-width: 44.9em) {
+  .sk-proof > div { border-left: 0; border-top: 1px solid var(--sk-line); }
+  .sk-proof > div:first-child { border-top: 0; }
+}
+
+/* spec strip: mono numbers between hairlines */
+.sk-spec {
+  display: flex;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--sk-line-strong);
+  border-bottom: 1px solid var(--sk-line-strong);
+  margin: 1.5rem 0;
+}
+.sk-spec > div { flex: 1 1 8rem; padding: .7rem .9rem; border-left: 1px solid var(--sk-line); }
+.sk-spec > div:first-child { border-left: 0; padding-left: 0; }
+.sk-spec b { display: block; font: 400 1.25rem/1.2 var(--sk-mono); letter-spacing: -.01em; }
+.sk-spec span { display: block; font-size: .66rem; color: var(--md-default-fg-color--light); margin-top: .2rem; }
+
+/* outputs gallery */
+.sk-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 1rem;
+  margin: 1rem 0 1.5rem;
+}
+.md-typeset .sk-gallery figure { margin: 0; display: flex; flex-direction: column; align-items: stretch; }
+.md-typeset .sk-gallery figure img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: contain;
+  border: 1px solid var(--sk-line);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--md-default-fg-color) 4%, transparent);
+}
+.md-typeset .sk-gallery figcaption {
+  margin: .45rem 0 0;
+  max-width: none;
+  text-align: left;
+  font-size: .72rem;
+  color: var(--md-default-fg-color--light);
+}
+.md-typeset .sk-gallery figcaption b { color: var(--md-default-fg-color); font-weight: 600; }
+.md-typeset .sk-gallery figcaption code { font-size: .92em; }
+.sk-missing {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1rem;
+  box-sizing: border-box;
+  border: 1px dashed var(--sk-line-strong);
+  border-radius: 6px;
+  font-size: .72rem;
+  color: var(--md-default-fg-color--light);
+}
+.sk-phones { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+.sk-phones img { width: 30%; min-width: 9rem; border-radius: 14px; border: 1px solid var(--sk-line); }
+.sk-narrow { max-width: 22rem; display: block; margin: 0 auto; }
+
+/* buttons: ink, never the header colour */
+.md-typeset .md-button { color: var(--md-typeset-a-color); border-color: currentColor; border-width: 1px; }
+.md-typeset .md-button--primary,
+.md-typeset .md-button--primary:hover,
+.md-typeset .md-button:hover {
+  background: var(--md-accent-fg-color);
+  border-color: var(--md-accent-fg-color);
+  color: var(--sk-on-accent);
+}
+
+/* footer: the title block */
+.md-footer-meta { border-top: 1px solid color-mix(in srgb, var(--md-footer-fg-color) 18%, transparent); }
+.md-copyright.sk-tb {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 30rem);
+  margin: .8rem 0;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--md-footer-fg-color) 30%, transparent);
+  font-size: .64rem;
+}
+.sk-tb__cell {
+  display: flex;
+  flex-direction: column;
+  gap: .1rem;
+  padding: .35rem .6rem .45rem;
+  border-top: 1px solid color-mix(in srgb, var(--md-footer-fg-color) 18%, transparent);
+}
+.sk-tb__cell--wide { grid-column: 1 / -1; }
+.sk-tb__cell:first-child { border-top: 0; }
+.sk-tb__cell--right { border-left: 1px solid color-mix(in srgb, var(--md-footer-fg-color) 18%, transparent); }
+.sk-tb__k {
+  font: 500 .55rem/1.2 var(--sk-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--md-footer-fg-color--light);
+}
+.sk-tb__title { font: 400 1.25rem/1.1 var(--sk-display); color: var(--md-footer-fg-color); }
+.sk-tb__v { font-family: var(--sk-mono); color: var(--md-footer-fg-color); }
+a.sk-tb__v:hover { text-decoration: underline; color: var(--md-footer-fg-color); }
+
+/* figure details: captions upright, no paragraph gap above them; the turntable at its own size */
+.md-typeset .sk-gallery figure > p { margin: 0; }
+.md-typeset .sk-gallery figcaption { font-style: normal; }
+.md-typeset img.sk-gif { display: block; width: 100%; max-width: 640px; margin: 0 auto; }

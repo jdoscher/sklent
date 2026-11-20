@@ -1,5 +1,12 @@
 # sklent
 
+<p>
+  <a href="https://sklent.app"><img alt="Docs" src="https://img.shields.io/badge/docs-sklent.app-1C1B19"></a>
+  <a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-1C1B19"></a>
+</p>
+
+**Docs: [sklent.app](https://sklent.app)** (install, outputs, revisions, publishing, render helpers, MCP).
+
 Point it at a GitHub or Forgejo account, repo, folder, file, branch, tag or pull request, and
 it renders every [SolidCraft](https://github.com/tangency-labs/solidcraft) design (and every
 STEP, STL and 3MF file) it finds into a media set, then files the set into a

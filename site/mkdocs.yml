@@ -1,0 +1,106 @@
+# Sklent's documentation site (MkDocs + Material for MkDocs), published at https://sklent.app.
+#
+# The pages are the Markdown files in docs/ (the same files GitHub shows), so
+# there is one copy of every page. Build or preview from the repository root:
+#
+#   uvx --with-requirements site/requirements.txt mkdocs build --strict -f site/mkdocs.yml
+#   uvx --with-requirements site/requirements.txt mkdocs serve -f site/mkdocs.yml
+#
+# The output goes to site/_build/ (ignored). Publishing is manual: see
+# .github/workflows/docs.yml (workflow_dispatch only) and docs/releasing.md.
+
+site_name: Sklent
+site_description: Point it at a CAD repo; get turntables, sheets and listing packs for every design. Self-hosted.
+site_url: https://sklent.app/
+repo_url: https://github.com/jdoscher/sklent
+repo_name: jdoscher/sklent
+edit_uri: edit/main/docs/
+copyright: Sklent is MIT licensed. Example renders are of designs from tangency-labs/solidcraft (Apache-2.0); see Credits.
+
+docs_dir: ../docs
+site_dir: _build
+
+# docs/ also holds the brand build script and the fonts' licences
+exclude_docs: |
+  *.py
+  assets/fonts/*.txt
+
+not_in_nav: |
+  brand/*
+
+theme:
+  name: material
+  custom_dir: overrides
+  language: en
+  # fonts are self-hosted (assets/fonts); no request to Google Fonts
+  font: false
+  logo: brand/icon-tile.svg  # the white mark needs the dark tile on a light header
+  favicon: brand/icon-tab.svg
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Light theme
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Dark theme
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+  icon:
+    repo: fontawesome/brands/github
+
+extra_css:
+  - assets/site.css
+
+extra:
+  generator: false
+  # shown in the footer's title block; bump it with each release (docs/releasing.md)
+  version_label: "0.2.1"
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/jdoscher/sklent
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+nav:
+  - Home: index.md
+  - Get started:
+      - Install: install.md
+      - Inputs and access: inputs.md
+      - Working with Kist: kist.md
+  - Use:
+      - Outputs and settings: outputs.md
+      - Revisions: revisions.md
+      - Publishing: publishing.md
+      - Render helpers and GPU: helpers.md
+      - Agents (MCP): mcp.md
+  - Keep it safe:
+      - Privacy: privacy.md
+  - Project:
+      - Design system: design.md
+      - Headless rendering spike: spike.md
+      - Releasing: releasing.md
+      - Credits: credits.md

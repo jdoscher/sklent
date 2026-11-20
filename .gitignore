@@ -8,3 +8,6 @@ __pycache__/
 .ruff_cache/
 .DS_Store
 .env.helper
+
+# docs site build output (site/mkdocs.yml)
+site/_build/
