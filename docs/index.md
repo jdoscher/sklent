@@ -10,11 +10,10 @@ hide:
 
 # Your CAD repo, as a showcase. { .sk-hero__line }
 
-<p class="sk-hero__sub">Sklent turns the 3D designs in a Git repo into turntable videos, stills,
-drawing sheets and marketplace listing packs, on your own server. Point it at a repo on GitHub or
-Forgejo (a self-hosted Git forge) and it renders every STEP, STL and 3MF file in it, plus designs
-made in <a href="https://github.com/tangency-labs/solidcraft">SolidCraft</a>, an open-source parametric CAD app. AI agents like Claude
-can run it too, over MCP, the protocol they use to call tools.</p>
+<p class="sk-hero__sub">Point Sklent at a Git repo of 3D designs and it renders each one into
+turntable videos, stills, drawing sheets and listing packs, on your own server. It reads STEP, STL
+and 3MF files and <a href="https://github.com/tangency-labs/solidcraft">SolidCraft</a> designs from
+GitHub or Forgejo, and AI agents can drive it too.</p>
 
 [Install](install.md){ .md-button .md-button--primary } [Connect an agent](mcp.md){ .md-button }
 
