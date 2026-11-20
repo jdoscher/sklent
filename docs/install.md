@@ -1,7 +1,8 @@
 # Install
 
-Sklent is one Docker container: the web app, the API, the MCP endpoint and a render worker,
-with SolidCraft, ffmpeg and Mesa inside. It needs:
+Sklent is one Docker container: the web app, the API, the MCP endpoint (MCP is the protocol AI agents like Claude use to call tools)
+and a render worker, with [SolidCraft](https://github.com/tangency-labs/solidcraft) (an open-source parametric CAD app, which opens and
+renders the designs), ffmpeg and Mesa inside. It needs:
 
 - **Docker** with Compose, on an **x86-64 Linux** host (the image pins SolidCraft's
   `linux-x86_64` build, 0.44.1, checked by SHA-256).
@@ -26,9 +27,9 @@ The settings that matter on day one:
 | `SK_TOKEN` | | **Required.** Admin token for the UI, API and MCP (16+ characters) |
 | `SK_PORT` | `8090` | Host port for the UI, API and MCP |
 | `SK_DATA` | `./data` | The database and local render sets |
-| `SK_KIST_URL`, `SK_KIST_TOKEN` | | A [Kist](kist.md) to file sets into; leave the URL empty to keep renders local |
+| `SK_KIST_URL`, `SK_KIST_TOKEN` | | Optional: a [Kist](https://kist.pictures) (a self-hosted library for the images and files you collect) to file sets into, see [Working with Kist](kist.md); leave the URL empty to keep renders local |
 | `SK_GITHUB_TOKEN` | | Private repos, and a higher API limit (GitHub allows 60 anonymous API calls an hour) |
-| `SK_FORGEJO_URL`, `SK_FORGEJO_TOKEN` | | Your Forgejo; its token is only ever sent to that host |
+| `SK_FORGEJO_URL`, `SK_FORGEJO_TOKEN` | | Your Forgejo (a self-hosted Git forge); its token is only ever sent to that host |
 | `SK_RENDERER` | `gpu` | `gpu`, `software` (Mesa lavapipe on the CPU) or `off` (helpers only) |
 | `SK_RENDER_GID` | `992` | The group that owns `/dev/dri/renderD128` (`getent group render`) |
 | `TZ` | `UTC` | The time zone of [quiet hours](helpers.md#this-servers-gpu) |
@@ -84,7 +85,7 @@ What a URL can point at (an account, a folder, a branch, a pull request, a class
 
 ## Rendering without the app
 
-A design that is only on disk renders with the CLI, with no database and no Kist:
+A design that is only on disk renders with the CLI, with no database and no [Kist](https://kist.pictures):
 
 ```bash
 docker compose run --rm app sklent render /data/some.sc /data/out --palette white

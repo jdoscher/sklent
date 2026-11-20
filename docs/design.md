@@ -1,6 +1,7 @@
 # Sklent's design system
 
-Sklent wears Kist 2.0's design system, so the two apps read as one suite, plus a small
+Sklent wears the design system of [Kist](https://kist.pictures/brand/) 2.0 (a self-hosted library for the images and files you
+collect), so the two apps read as one suite, plus a small
 drafting layer of its own (the "truth rule": every line either carries a real value or
 separates two real things). The web UI is plain files: native ES modules and per-area CSS
 under `sklent/web/`, with no bundler and no build step.
@@ -8,15 +9,15 @@ under `sklent/web/`, with no bundler and no build step.
 The decisions behind it are in the 0.2 review (U1 "Suite system", U2 "Drafting overlay");
 the options built are UI 1–17 with 9a (label strip), 11a (schedule sidebar), 12a (drawing
 sheet), 15a (sheet-style gate plus the first-run screen), 16a, later replaced (2026-11-19) by the "Section" mark (see Brand below) (the S-in-a-ring mark on
-Kist's #3A3A3A tile, Instrument Serif wordmark) and 17a (no Sklent-side background keying).
+[Kist](https://kist.pictures/brand/)'s #3A3A3A tile, Instrument Serif wordmark) and 17a (no Sklent-side background keying).
 
 ## Layers
 
 | layer | file | what it may contain |
 |---|---|---|
-| Kist tokens | `css/kist-tokens.css` | **Generated.** Kist's `web/src/styles.css` `:root` scale (type, motion, floats, corners, controls) and `web/src/themes.css` (dark, light, gallery), verbatim, with the Kist tag and commit in its header. Never edit by hand. |
-| Pin | `css/kist-tokens.lock.json` | The Kist tag, commit and the copy's sha256. |
-| Sklent tokens | `css/sk-tokens.css` | Only `--sk-*` names, each a Kist token or a `color-mix` of one: the canvas grid, the spec (mono) voice, hairline tones, the drawing sheet, dimension-line offsets, the title block. No colour values. |
+| [Kist](https://kist.pictures/brand/) tokens | `css/kist-tokens.css` | **Generated.** [Kist](https://kist.pictures/brand/)'s `web/src/styles.css` `:root` scale (type, motion, floats, corners, controls) and `web/src/themes.css` (dark, light, gallery), verbatim, with the [Kist](https://kist.pictures/brand/) tag and commit in its header. Never edit by hand. |
+| Pin | `css/kist-tokens.lock.json` | The [Kist](https://kist.pictures/brand/) tag, commit and the copy's sha256. |
+| Sklent tokens | `css/sk-tokens.css` | Only `--sk-*` names, each a [Kist](https://kist.pictures/brand/) token or a `color-mix` of one: the canvas grid, the spec (mono) voice, hairline tones, the drawing sheet, dimension-line offsets, the title block. No colour values. |
 | Areas | `css/base.css` … `css/phone.css` | Rules only. Colours come from tokens; no hex, `rgb()` or named colours (tested). |
 
 Theme: `html[data-theme]` is `gallery` (default), `dark` or `light`; the Appearance menu also
@@ -43,7 +44,7 @@ change that breaks a text/surface pair fails `test_contrast.py`.
 | `sklent/web/theme-init.js` | design system | first-paint theme (classic script) |
 | `sklent/web/manifest.webmanifest`, icons (`favicon.*`, `icon-*`, `apple-touch-icon.png`) | design system | built by `scripts/build_icons.py` |
 | `sklent/web/fonts/` | design system | Inter, Instrument Serif, JetBrains Mono (latin woff2) + OFL licences |
-| `sklent/web/css/kist-tokens.css`, `.lock.json` | **Kist** (generated) | `scripts/sync_kist_tokens.py` only |
+| `sklent/web/css/kist-tokens.css`, `.lock.json` | **[Kist](https://kist.pictures/brand/)** (generated) | `scripts/sync_kist_tokens.py` only |
 | `sklent/web/css/sk-tokens.css` | design system | the drafting overlay tokens |
 | `sklent/web/css/base.css` | design system | fonts, reset, type roles, controls, focus, reduced motion |
 | `sklent/web/css/shell.css` | design system | top bar, sidebar, job log, progress rule |
@@ -168,14 +169,14 @@ The web seams above have server-side partners. Every feature area is a package i
 | Feature registry | `sklent/features/__init__.py` | `MODULES` (one line per area: `revisions`, `inputs`, `views`, `specs`, `outputs`); each module exposes `SCHEMA` (additive SQL), `router` (mounted at `/api`) and `register_mcp(mcp)` |
 | Render steps | `sklent/steps.py` | `register_step(name, run, *, order, when)`; `run(ctx: StepContext)` with `ctx.sc`, `ctx.add(...)`, `ctx.guard`, `ctx.restore()`, `ctx.settings`, `ctx.enabled(key)`, `ctx.info` (world-placed bodies), `ctx.box`. A failing step never fails the render. Orders: views 10–48, specs 50–79, revisions 80, outputs 90. Skipped on a quick check (`settings["quick_check"]`) |
 | Settings registry | `sklent/jobs.py` | `register_setting(key, default, validate)`; `get_all_settings(design_id=None)` and `get_options(design_id=None)` apply a repo's `.sklent.yaml` overrides |
-| Render path | `sklent/jobs.py` `_render` | download (`inputs.links.fetch_design`) → options (`get_options(id)`, `get_all_settings(id)`, then `views.render_overrides(id, opts, settings)`) → `settings["design"]` = the design row → `render_set` into a staging dir → Kist filing (`rev:`, `ref:` tags, version links) → `sets.promote` → keep policy |
+| Render path | `sklent/jobs.py` `_render` | download (`inputs.links.fetch_design`) → options (`get_options(id)`, `get_all_settings(id)`, then `views.render_overrides(id, opts, settings)`) → `settings["design"]` = the design row → `render_set` into a staging dir → [Kist](https://kist.pictures) filing (`rev:`, `ref:` tags, version links) → `sets.promote` → keep policy |
 | Render sets | `sklent/sets.py` (revisions owns it) | `latest_set(design_id)`, `get_set(design_id, set_id)`, `list_sets(design_id)`, `read_json(folder, name)`, `write_json(folder, name, data)`; one set per blob; `commit_sha` is always a commit |
 | Framing | `sklent/render.py` | `world_bodies(sc, info)` (measure's world boxes; extra placements in `placed`), `placed_bounds(info)`; `ortho_fit`, `shot_path`, `paint_style`, `plan(opts, settings)` |
 | Views | `sklent/features/views` | `render_overrides(design_id, opts, settings)`; `steps.render_job(sc, path, w, h, cam, ...)` |
-| Specs | `sklent/features/specs` | `meta.design_row(ctx)` (reads `ctx.settings["design"]`), `ortho.register_sheet_backend(name, fn)`, `ortho.drawing_support(sc)` (SolidCraft ≥ 0.45 `drawing.*`) |
+| Specs | `sklent/features/specs` | `meta.design_row(ctx)` (reads `ctx.settings["design"]`), `ortho.register_sheet_backend(name, fn)`, `ortho.drawing_support(sc)` ([SolidCraft](https://github.com/tangency-labs/solidcraft), the open-source parametric CAD app, ≥ 0.45 `drawing.*`) |
 | Repo config | `sklent/repo_config.py` | `get(design_id) -> dict`, `render_overrides(design_id)`, `for_local(path)`, `parse(bytes)`, `resolve(path, files)`; read by views (highlight), specs (material, licence, bom, steps), outputs (title, licence) |
 | Share links | `sklent/features/outputs` | `share_link(design_id) -> str \| None` (never creates one); used by the inputs review comment |
-| Viewer gate | `sklent/auth.py`, `sklent/mcp_server.py` | viewers get `GET` under `/api` (not `/api/tokens`) and MCP tools in `mcp_server.READ_ONLY_TOOLS` (annotated `readOnlyHint`); every tool must be in `READ_ONLY_TOOLS` or `WRITE_TOOLS` (tested) |
+| Viewer gate | `sklent/auth.py`, `sklent/mcp_server.py` | viewers get `GET` under `/api` (not `/api/tokens`) and MCP tools (MCP is the protocol AI agents like Claude use to call tools) in `mcp_server.READ_ONLY_TOOLS` (annotated `readOnlyHint`); every tool must be in `READ_ONLY_TOOLS` or `WRITE_TOOLS` (tested) |
 
 ## Vocabulary
 
@@ -183,13 +184,13 @@ The web seams above have server-side partners. Every feature area is a package i
 |---|---|
 | Faces | Inter (`--font-ui`) for every word; Instrument Serif (`--font-display`) for names and titles; JetBrains Mono (`--sk-font-data`, class `.sk-data` / `.mono`) for spec values: sizes, envelopes, hashes, paths, dates, frame counts. Counts a person reads stay Inter. |
 | Sizes | `--fs-1`…`--fs-6` (11/13/15/18/24/34). A raw size needs `/* type-scale: allow */` (only the 16 px phone fields, so iOS doesn't zoom). |
-| Controls | 28 px (`--ctl-h`), quiet by default; one primary per view (Render, Save, Continue; Re-render on the sheet uses Kist's preview pair). |
+| Controls | 28 px (`--ctl-h`), quiet by default; one primary per view (Render, Save, Continue; Re-render on the sheet uses [Kist](https://kist.pictures/brand/)'s preview pair). |
 | Selection | `--accent-soft` fill + 1 px `--selected-line` outline; in the sheet `--preview-soft` + `--preview-dim`. |
 | Lines | always 1 px (`--sk-line`). The frame is the one 3:1 line (`--sk-sheet-frame`); rules are decorative tones (`--sk-rule`, `--sk-rule-float`, `--sk-sheet-rule`). |
 | Grid | 24 px cells on the canvas only, never behind a render or text, off on the phone and under `prefers-contrast: more`. Tiles are 280 px (`--sk-tile`) so gutters sit on grid lines. |
 | Dimension lines | only on the media's edge, giving the file's true pixel size; never on a part. |
 | Icons | Lucide (ISC), inlined in `js/icons.js`, 14/16/20 px, 1.5 stroke. Add a glyph there from lucide-static. |
-| Motion | Kist's `--dur-*` / `--ease-*`; everything off under `prefers-reduced-motion`. |
+| Motion | [Kist](https://kist.pictures/brand/)'s `--dur-*` / `--ease-*`; everything off under `prefers-reduced-motion`. |
 | Floats | `--bg-float`, `--float-line`, `--float-shadow`, `--dialog-radius` / `--float-radius`, over `--scrim`. |
 
 ## Tests
@@ -197,7 +198,7 @@ The web seams above have server-side partners. Every feature area is a package i
 | test | guards |
 |---|---|
 | `tests/test_tokens.py` | the vendored copy matches its pinned hash; the sync script reproduces it; `sk-tokens.css` defines only `--sk-*` from known tokens; every `var()` in the CSS exists; no colours outside the token files; font sizes on the scale; font and icon licences ship |
-| `tests/test_contrast.py` | a Python port of Kist's `contrast.ts` (maths, parser, its 80 pairs) plus Sklent's own text/surface pairs, in all three themes |
+| `tests/test_contrast.py` | a Python port of [Kist](https://kist.pictures/brand/)'s `contrast.ts` (maths, parser, its 80 pairs) plus Sklent's own text/surface pairs, in all three themes |
 | `tests/test_web.py` | every asset `index.html` names is served; ES-module imports resolve; the seams are exported; code is served `no-cache`; the manifest and its icons |
 | `tests/test_design_api.py` | `blob` and `report` on designs; job cancel; "1 body" |
 
@@ -206,8 +207,8 @@ When a feature adds text on a new surface pair, add the pair to `SKLENT_PAIRS` i
 
 ## Brand: the Section mark (2026-11-19)
 
-A square part cut open by three 45° hatch gaps (ISO 128 section hatch, "/" direction), in four solid pieces. It is Kist's sibling: Kist's Corners frame a square from outside, and Section shows the same square cut open.
-- **Grid:** Kist's 64-unit grid. The part spans 8–56 for the bare mark, 16–48 on the app tile, and 12–52 on the tab tile.
+A square part cut open by three 45° hatch gaps (ISO 128 section hatch, "/" direction), in four solid pieces. It is [Kist](https://kist.pictures/brand/)'s sibling: [Kist](https://kist.pictures/brand/)'s Corners frame a square from outside, and Section shows the same square cut open.
+- **Grid:** [Kist](https://kist.pictures/brand/)'s 64-unit grid. The part spans 8–56 for the bare mark, 16–48 on the app tile, and 12–52 on the tab tile.
 - **Gaps:** 6 units measured along an edge.
 - **Radii:** r2 on the square's outer corners, r0.5 on the cut corners.
 - **Colours:** white on #3A3A3A for tiles. The bare mark uses ink #2B2B2B on light and #ECEAE4 on dark (favicon.svg switches with `prefers-color-scheme`). The app uses `currentColor`, inlined in index.html.

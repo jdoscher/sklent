@@ -3,8 +3,8 @@
 ## Example designs
 
 Every render, still and screenshot on this site shows designs from
-**[tangency-labs/solidcraft](https://github.com/tangency-labs/solidcraft)**, SolidCraft's own
-repository, licensed under the
+**[tangency-labs/solidcraft](https://github.com/tangency-labs/solidcraft)**, the repository of
+SolidCraft (an open-source parametric CAD app), licensed under the
 [Apache License 2.0](https://github.com/tangency-labs/solidcraft/blob/main/LICENSE). Sklent
 rendered them unmodified (repainted grey, as it renders everything); the SolidCraft authors
 don't endorse Sklent.
@@ -26,8 +26,8 @@ covers the whole repository.
   and renders every design; the image pins its release.
 - **[ffmpeg](https://ffmpeg.org)** encodes the movies and GIFs; **Mesa** provides Vulkan on the
   GPU and lavapipe for software rendering.
-- **[Kist](https://kist.pictures)** (MIT): the design system Sklent wears, and where sets are
-  filed.
+- **[Kist](https://kist.pictures)** (MIT), a self-hosted library for the images and files you
+  collect: the design system Sklent wears, and where sets are filed if you connect one.
 - **[MkDocs](https://www.mkdocs.org)** and
   **[Material for MkDocs](https://squidfunk.github.io/mkdocs-material/)** (MIT) build this site.
 

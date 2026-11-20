@@ -42,8 +42,8 @@ One-time setup (first publish):
 
 Shoot them only on an instance that holds public designs (the current ones are from
 [tangency-labs/solidcraft](credits.md), Apache-2.0), never on one with private work. Before each
-shot, hide anything that names a machine, an address, a path or a token (the Kist chip's
-tooltip, the job log's helper names, the title block's **Rendered on** cell, URL fields).
+shot, hide anything that names a machine, an address, a path or a token (the tooltip of
+the chip that shows the connected [Kist](https://kist.pictures) library, the job log's helper names, the title block's **Rendered on** cell, URL fields).
 
 - Screenshots: WebP (quality about 85) in `docs/assets/screenshots/`, desktop 1440×900 in
   gallery grey, dark and light, and the phone at 390×844 with touch emulation.

@@ -5,12 +5,17 @@
   <a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-1C1B19"></a>
 </p>
 
-**Docs: [sklent.app](https://sklent.app)** (install, outputs, revisions, publishing, render helpers, MCP).
+**Docs: [sklent.app](https://sklent.app)** (install, outputs, revisions, publishing, render helpers, agents).
 
-Point it at a GitHub or Forgejo account, repo, folder, file, branch, tag or pull request, and
-it renders every [SolidCraft](https://github.com/tangency-labs/solidcraft) design (and every
-STEP, STL and 3MF file) it finds into a media set, then files the set into a
-[Kist](https://github.com/jdoscher/kist) folder.
+Point it at a GitHub or Forgejo (a self-hosted Git forge) account, repo, folder, file, branch,
+tag or pull request, and it renders every [SolidCraft](https://github.com/tangency-labs/solidcraft) design (SolidCraft is an
+open-source parametric CAD app) and every STEP, STL and 3MF file it finds into a media set:
+turntable videos, stills, drawing sheets and listing packs.
+
+Sklent works on its own and keeps the sets on its own disk. If you also run
+[Kist](https://kist.pictures), a self-hosted library for the images and files you collect, it files each set
+into a [Kist](https://kist.pictures) folder. It also has an MCP endpoint, so AI agents like Claude can drive it (MCP is the
+protocol they use to call tools).
 
 ## What's new in 0.2.1
 
@@ -20,7 +25,7 @@ STEP, STL and 3MF file) it finds into a media set, then files the set into a
   `22:00-07:00`) either hold renders for helpers or switch to software.
 - **Render helpers.** Another machine with SolidCraft (a Linux box with
   `docker-compose.helper.yml`, or natively on a Mac) can take every render; this server keeps
-  scans, filing into Kist and the revision history. See [Render helpers](#render-helpers).
+  scans, filing into [Kist](https://kist.pictures) and the revision history. See [Render helpers](#render-helpers).
 - Each set's `report.json` and the drawing sheet's title block say where it was rendered
   (`renderer: gpu|software`, `host`).
 
@@ -36,19 +41,19 @@ if the GPU isn't shared. Set `TZ` in `.env` before you use quiet hours.
 
 | area | what you get | on by default |
 |---|---|---|
-| Design | Kist 2.0's design system: gallery/dark/light, drawing-sheet detail view, phone layout | yes |
+| Design | [Kist](https://kist.pictures/brand/) 2.0's design system: gallery/dark/light, drawing-sheet detail view, phone layout | yes |
 | Inputs | STEP/STL/3MF designs, linked multi-file assemblies, `.sklent.yaml`, branch/tag/PR renders, class sets with deadlines, read-only viewer tokens | STEP and mesh scanning on; posting review comments off |
-| Revisions | every version keeps its set; compare, filmstrip, changelog; Kist version links; build-history timelapse | history on; timelapse off |
+| Revisions | every version keeps its set; compare, filmstrip, changelog; [Kist](https://kist.pictures) version links; build-history timelapse | history on; timelapse off |
 | Views | quick check, per-render outputs, shot presets, masters, exploded, section, configurations, highlight, motion studies, transparent, studio hero, plate, bed fit | quick check, configurations, motion studies, bed fit |
 | Specs | `spec.json` and spec card, BOM, engineering views sheet (PNG/PDF), dimension callout, contact sheet, assembly steps | all but assembly steps |
-| Outputs | marketplace presets, print file pack, project page, listing packs, real photos, brand, Kist review board and share link | presets/pages/packs on demand; file pack, brand and share links off |
+| Outputs | marketplace presets, print file pack, project page, listing packs, real photos, brand, [Kist](https://kist.pictures/privacy/#sharing) review board and share link | presets/pages/packs on demand; file pack, brand and share links off |
 
 ### Upgrading from 0.1
 
 - **Older sets are now kept.** A re-render adds a set for the new version instead of
-  replacing the old one, and older Kist items stay (tagged `rev:<commit>`, linked as
+  replacing the old one, and older [Kist](https://kist.pictures) items stay (tagged `rev:<commit>`, linked as
   versions). Untagged versions beyond `revisions_keep` (10) are pruned from disk, never from
-  Kist unless `revisions_prune_kist` is on.
+  [Kist](https://kist.pictures) unless `revisions_prune_kist` is on.
 - **SolidCraft 0.44.1** (from 0.28.0): rebuild the image (`docker compose up -d --build`).
 - **New optional settings** (`views_*`, `specs_*`, `outputs_*`, `revisions_*`, `inputs_*`)
   live in the app's Settings, not `.env`; see the table under
@@ -77,7 +82,7 @@ replaces the full set.
 ### Views and render modes
 
 Off unless noted; each is a render setting (`views_*`) and can also be turned on for one
-render. Extra files land in the set, in Kist (`format:<variant>`) and on the design's sheet.
+render. Extra files land in the set, in [Kist](https://kist.pictures) (`format:<variant>`) and on the design's sheet.
 
 | variant | file | what | setting (default) |
 |---|---|---|---|
@@ -104,12 +109,12 @@ Parts are always rendered in **cool grey** or **white** (a setting), never in a 
 colours: every body is repainted before rendering, and a colour guard greys out any pixel
 that still carries colour (per-face paint, imported STEP colours).
 
-In Kist, each set lands in `SolidCraft/<owner>/<repo>/<design>`, tagged `solidcraft`,
+In [Kist](https://kist.pictures), each set lands in `SolidCraft/<owner>/<repo>/<design>`, tagged `solidcraft`,
 `repo:<owner>/<repo>`, `design:<name>`, `style:<shaded|wireframe>`, `format:<variant>` and
 `palette:<name>` and `rev:<commit10>` (the commit that made that version of the file), with
 the file's URL at the rendered commit as its source. A new version never trashes the
 previous one's items: each new item is linked `version_of` the item it follows and stacked
-with it as the cover, so Kist's versions list and compare work on the chain and links to
+with it as the cover, so [Kist](https://kist.pictures)'s versions list and compare work on the chain and links to
 older items keep working (see **Revisions**). Renders of a pull request or another branch
 or tag file into their own subfolder, `<design>/pr-<n>` or `<design>/@<branch>`, tagged
 `ref:pr-<n>` or `ref:<branch>`.
@@ -124,8 +129,8 @@ one has finished: a cancelled or failed re-render leaves the old set in place.
 
 - **Keep policy:** every tagged version stays; of the untagged ones, the newest
   `revisions_keep` (default 10; `0` keeps all) stay on disk and older ones are pruned. Pruning
-  never touches Kist unless `revisions_prune_kist` is on (default off), which trashes the
-  pruned versions' items (restorable from Kist's trash).
+  never touches [Kist](https://kist.pictures) unless `revisions_prune_kist` is on (default off), which trashes the
+  pruned versions' items (restorable from [Kist](https://kist.pictures)'s trash).
 - **Compare** (a sheet in the drawing sheet, under Revisions): two versions as a slider, side
   by side, or **Changes**: the pixels that differ, drawn in the sheet's ink over a faded copy
   of the newer one (numpy, from the matching stills; never a hue). It works on any still, or
@@ -188,7 +193,7 @@ Open `http://<host>:8090`, paste the token, then paste a URL and press **Render*
 Hovering a tile plays its turntable; clicking it opens the design as a drawing sheet: the
 file at its true pixel size, a numbered schedule of every file with downloads, and a title
 block (source and commit, revision, date, palette, envelope in mm, bodies). The UI uses
-Kist 2.0's design system (gallery grey by default; dark and light under **Appearance**)
+[Kist](https://kist.pictures/brand/) 2.0's design system (gallery grey by default; dark and light under **Appearance**)
 and works on a phone (the menu opens filters, sources and jobs). See `docs/design.md`.
 
 A design that is only on disk can be rendered without the app:
@@ -213,8 +218,8 @@ Server settings go in `.env`:
 | `SK_TOKEN` | | **Required.** Admin token for the UI, API and MCP (16+ chars) |
 | `SK_PORT` | `8090` | Host port |
 | `SK_DATA` | `./data` | Database and local render sets |
-| `SK_KIST_URL`, `SK_KIST_TOKEN` | | Kist to file sets into; empty URL keeps renders local |
-| `SK_KIST_ROOT_FOLDER` | `SolidCraft` | Top-level Kist folder |
+| `SK_KIST_URL`, `SK_KIST_TOKEN` | | [Kist](https://kist.pictures) to file sets into; empty URL keeps renders local |
+| `SK_KIST_ROOT_FOLDER` | `SolidCraft` | Top-level [Kist](https://kist.pictures) folder |
 | `SK_GITHUB_TOKEN` | | Private repos, and a higher API rate limit (without one GitHub allows 60 API calls an hour, a handful of designs' first renders) |
 | `SK_FORGEJO_URL`, `SK_FORGEJO_TOKEN` | | Your Forgejo; the token is only sent to that host |
 | `SK_SCAN_INTERVAL_MINUTES` | `360` | Periodic re-scan; `0` turns it off |
@@ -241,7 +246,7 @@ Render and feature settings live in the app: the UI's **Settings**, `GET/PUT
 | `inputs_review_post` | off | Allow **Post** of a review comment to the pull request (only ever on a click) |
 | `inputs_public_url` | `""` | This server's URL for links in review comments (empty: the address the page uses) |
 | `revisions_keep` | `10` | Untagged versions kept on disk besides every tagged one; `0` keeps all |
-| `revisions_prune_kist` | off | Also trash pruned versions' Kist items (off keeps every Kist link working) |
+| `revisions_prune_kist` | off | Also trash pruned versions' [Kist](https://kist.pictures) items (off keeps every [Kist](https://kist.pictures) link working) |
 | `revisions_timelapse` | off | Build-history timelapse MP4 and GIF |
 | `revisions_timelapse_max_features`, `_max_bodies` | `200`, `100` | Skip the timelapse above these |
 | `views_shot_half_orbit`, `_push_in`, `_top_to_iso`, `_low_angle` | off | Shot presets; `views_shot_seconds` (6) |
@@ -267,7 +272,7 @@ Render and feature settings live in the app: the UI's **Settings**, `GET/PUT
 | `outputs_licence` | `""` | Licence when neither the design nor the repo sets one |
 | `outputs_brand_text`, `_mark`, `_position`, `_opacity`, `_size`, `_photos` | none, off, `bottom-right`, `0.6`, `12` %, on | Watermark on exported copies only |
 | `outputs_brand_title_card`, `_end_card`, `_card_text`, `_card_seconds` | off, off, none, `1.5` | Cards on exported clips |
-| `outputs_review_share_links` | off | Allow Kist share links (public pages, made only on a click) |
+| `outputs_review_share_links` | off | Allow [Kist](https://kist.pictures/privacy/#sharing) share links (public pages, made only on a click) |
 | `outputs_review_proofing`, `_share_days`, `_allow_download` | on, `30`, off | Share link details |
 | `render_device` | `SK_RENDERER` (`gpu`) | `gpu`, `software` or `off` (helpers only) |
 | `render_gpu_processes` | `1` | Most SolidCraft processes on the GPU at once (software mode: `SK_RENDER_PROCESSES`) |
@@ -283,7 +288,7 @@ The `render_*` and `helpers_*` settings are server-side only: `.sklent.yaml` can
 
 A render helper is another machine with SolidCraft that renders for this server. It asks for
 work, downloads the design (and its linked files) from this server, renders the set with this
-server's settings and every feature step, and uploads it; this server then files it into Kist,
+server's settings and every feature step, and uploads it; this server then files it into [Kist](https://kist.pictures),
 links the versions and keeps the revision history, exactly as for its own renders. Scans stay
 here. A helper needs no database, no data folder and no forge token.
 
@@ -400,7 +405,7 @@ source renders only the designs the PR adds or changes, plus assemblies that lin
 file, at the PR's head. The sheet's **Review comment** section builds Markdown for the PR
 thread: each design's still, before (from the base branch, when Sklent has it) and after,
 with its envelope and body count and a link to the turntable GIF. The image links point at
-this server's file URLs (readers need its token) or, with Kist on, at a Kist share link.
+this server's file URLs (readers need its token) or, with [Kist](https://kist.pictures) on, at a [Kist](https://kist.pictures/privacy/#sharing) share link.
 
 **Nothing is posted** unless `inputs_review_post` is on and someone presses **Post** (or calls
 `post_review_comment`); then it is one comment through the forge's API with the server's
@@ -445,11 +450,11 @@ white, and dimension lines only ever appear on orthographic views, where they ar
 | `<design>-dimensions-2048.png` (`dimensions`) | on | the front view with overall width and height as ISO 129 dimension lines, depth noted |
 | `<design>-assembly-NN.png` (`assembly-N`), `<design>-assembly.md` (`assembly-md`) | off | assemblies: one picture per step (new parts in the darker grey, earlier ones lighter) and a GitBuilding BuildUp page |
 
-All of them land in Kist with the rest of the set (`format:<variant>`), and show in the
+All of them land in [Kist](https://kist.pictures) with the rest of the set (`format:<variant>`), and show in the
 drawing sheet's schedule; the sheet also gets **Spec** and **Parts** sections and a
 Licence cell. A **contact sheet** of every rendered design in a source (3840×2160 PNG
 pages and a PDF, hero stills with mono labels) is made on demand from the grid button on
-the source's row, or `POST /api/sources/{id}/contact-sheet`; with Kist on it is filed once
+the source's row, or `POST /api/sources/{id}/contact-sheet`; with [Kist](https://kist.pictures) on it is filed once
 per version of the sheet, tagged `format:contact-sheet`.
 
 Settings: `specs_*` in the [Configuration](#configuration) table.
@@ -478,7 +483,7 @@ for a material set there, in the setting, or in the design itself; SolidCraft's 
 Everything that turns a render set into something to upload or hand over, under the
 drawing sheet's **Publish** pages. Sklent packages; it never posts. Exported copies live
 with their set (`<set>/presets/`, `<set>/exports/`), so they belong to one commit, and with
-Kist on each one is also filed in the design's Kist folder (same tags plus
+[Kist](https://kist.pictures) on each one is also filed in the design's [Kist](https://kist.pictures) folder (same tags plus
 `format:<variant>`, e.g. `format:size-cover-4x3`, `format:pack-etsy`, `format:page`). The
 filed render set itself is never changed.
 
@@ -511,9 +516,9 @@ filed render set itself is never changed.
   never blocks. A tile shows `photos n/N` once a design has photos.
 - **Brand** (F23, off). A watermark (text or an uploaded PNG mark), title and end cards on
   clips, applied only to exported copies.
-- **Kist review board** (F26). With Kist on, a design's set (or one still per design of a
-  source) becomes a Kist board, real photos first. A **share link** to it, with Kist's guest
-  proofing, is a public page on your Kist: it needs `outputs_review_share_links` on, is
+- **[Kist](https://kist.pictures) review board** (F26). With [Kist](https://kist.pictures) on, a design's set (or one still per design of a
+  source) becomes a [Kist](https://kist.pictures) board, real photos first. A **share link** to it, with [Kist](https://kist.pictures/privacy/#sharing)'s guest
+  proofing, is a public page on your [Kist](https://kist.pictures): it needs `outputs_review_share_links` on, is
   made only when you click (and confirm), expires (30 days), and can be revoked.
 
 Marketplace rules (checked 2026-11-18; sites change them): Etsy photos at least 2,000 px on
@@ -557,7 +562,7 @@ Tools marked **R** only read; a viewer token may call those and nothing else.
 | `render_url` | Scan a URL now and queue renders; returns job ids | |
 | `wait_for_job`, `job_status`, `list_jobs` | Follow progress | R |
 | `cancel_job` | Drop a queued job, or stop a running render (its SolidCraft processes are killed) | |
-| `get_render_set` | Files, sizes, download paths, Kist folder and item ids | R |
+| `get_render_set` | Files, sizes, download paths, [Kist](https://kist.pictures) folder and item ids | R |
 | `view_render` | See a still (image content) | R |
 | `list_sources`, `list_designs` | What's there | R |
 | `add_source`, `scan_source`, `render_design` | Finer control | |
@@ -577,17 +582,17 @@ Tools marked **R** only read; a viewer token may call those and nothing else.
 | `get_design_spec`, `get_bom` | A design's `spec.json` and parts list | R |
 | `view_sheet` | See a spec card, parts sheet, views sheet, dimension still or assembly step | R |
 | `make_contact_sheet` | Every rendered design of a source on one sheet (PNG pages + PDF) | |
-| `get_outputs` | A design's presets, print files, photos, listing details, readiness and Kist board | R |
+| `get_outputs` | A design's presets, print files, photos, listing details, readiness and [Kist](https://kist.pictures) board | R |
 | `make_output_preset` | Make one preset or all enabled ones | |
 | `build_file_pack` | The print pack zip (README, licence, manifest), optionally split (`split_mb`) | |
 | `export_project_page` | Offline HTML page for a design or a source (zip) | |
 | `build_listing_pack` / `listing_readiness`, `listing_text` | Marketplace packs / the checklist and listing text | / R |
 | `set_listing_details` | Title, summary, licence, print notes, tags | |
 | `attach_photo` / `list_photos` | Real print photos (base64 in) | / R |
-| `make_review_board`, `create_share_link`, `revoke_share_link` | Kist board; public share link only when the setting allows and the user asks | |
+| `make_review_board`, `create_share_link`, `revoke_share_link` | [Kist](https://kist.pictures) board; public share link only when the setting allows and the user asks | |
 | `list_helpers` | Render helpers (last seen, version, renderer, current job, done count) and what this server does with renders now | R (admin token) |
 
-With Kist's own MCP connected as well, an agent can go on to browse, view and tag the
+With [Kist](https://kist.pictures/mcp/)'s own MCP connected as well, an agent can go on to browse, view and tag the
 filed sets there.
 
 ## API

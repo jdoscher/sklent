@@ -14,11 +14,12 @@ place.
 - **Every tagged version** stays.
 - Of the untagged ones, the newest `revisions_keep` (default **10**; `0` keeps all) stay on
   disk and older ones are pruned.
-- Pruning never touches Kist unless `revisions_prune_kist` is on (default **off**), which
-  trashes the pruned versions' items (restorable from Kist's trash).
+- Pruning never touches [Kist](https://kist.pictures) (the optional self-hosted library for images and files
+  that Sklent can file sets into) unless `revisions_prune_kist` is on (default **off**), which
+  trashes the pruned versions' items (restorable from [Kist](https://kist.pictures)'s trash).
 
-In Kist, a new version never trashes the previous one's items: each new item is linked
-`version_of` the one it follows and stacked with it as the cover, so Kist's versions list and
+In [Kist](https://kist.pictures), a new version never trashes the previous one's items: each new item is linked
+`version_of` the one it follows and stacked with it as the cover, so [Kist](https://kist.pictures)'s versions list and
 compare work on the chain and links to older items keep working. See
 [Working with Kist](kist.md).
 
@@ -51,7 +52,7 @@ rebuild, so designs over `revisions_timelapse_max_bodies` (100) bodies or
 | setting | default | |
 |---|---|---|
 | `revisions_keep` | `10` | Untagged versions kept on disk besides every tagged one; `0` keeps all |
-| `revisions_prune_kist` | off | Also trash pruned versions' Kist items |
+| `revisions_prune_kist` | off | Also trash pruned versions' [Kist](https://kist.pictures) items |
 | `revisions_timelapse` | off | Build-history timelapse MP4 and GIF |
 | `revisions_timelapse_max_features`, `revisions_timelapse_max_bodies` | `200`, `100` | Skip the timelapse above these |
 
@@ -61,5 +62,5 @@ rebuild, so designs over `revisions_timelapse_max_bodies` (100) bodies or
 - `GET /api/designs/{id}/compare?a=&b=&style=&variant=&frame=` (`a` older, `b` newer; by
   default the current version against the one before), plus `/compare/diff.png`,
   `/compare/frame.png`, `/compare/composite.png` and `/changelog?base=&head=`.
-- MCP: `list_sets`, `compare_sets` (changed share, bounding box, mask and composite URLs, and
+- [MCP](mcp.md) (the protocol AI agents like Claude use to call tools): `list_sets`, `compare_sets` (changed share, bounding box, mask and composite URLs, and
   the commits in between) and `view_compare` (older, newer and changes as one picture).

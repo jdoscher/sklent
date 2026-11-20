@@ -2,8 +2,9 @@
 
 Everything that turns a render set into something to upload or hand over lives under the
 drawing sheet's **Publish** pages. **Sklent packages; it never posts.** Exported copies live
-with their set (`<set>/presets/`, `<set>/exports/`), so they belong to one commit, and with
-Kist on each is also filed in the design's Kist folder (the same tags plus `format:<variant>`,
+with their set (`<set>/presets/`, `<set>/exports/`), so they belong to one commit. If you
+connect [Kist](https://kist.pictures), a self-hosted library for the images and files you collect, each is also
+filed in the design's folder there (the same tags plus `format:<variant>`,
 e.g. `format:size-cover-4x3`, `format:pack-etsy`, `format:page`). The filed render set itself
 is never changed.
 
@@ -68,9 +69,10 @@ clips, applied only to exported copies, never to the render set.
 
 ## Kist review board
 
-With [Kist](kist.md) on, a design's set (or one still per design of a source) becomes a Kist
-board, real photos first. A **share link** to it, with Kist's guest proofing, is a public page
-on your Kist: it needs `outputs_review_share_links` on, is made only when you click and
+With [Kist](https://kist.pictures) connected ([Working with Kist](kist.md)), a design's set (or one still per
+design of a source) becomes a board there, real photos first. A **share link** to it is a public
+page on your [Kist](https://kist.pictures/privacy/#sharing) with guest proofing, so guests can pick
+and comment: it needs `outputs_review_share_links` on, is made only when you click and
 confirm, expires (30 days by default) and can be revoked.
 
 ## Settings
@@ -86,7 +88,7 @@ confirm, expires (30 days by default) and can be revoked.
 | `outputs_licence` | `""` | Licence when neither the design nor the repo sets one |
 | `outputs_brand_text`, `_mark`, `_position`, `_opacity`, `_size`, `_photos` | none, off, `bottom-right`, `0.6`, `12` %, on | Watermark on exported copies only |
 | `outputs_brand_title_card`, `_end_card`, `_card_text`, `_card_seconds` | off, off, none, `1.5` | Cards on exported clips |
-| `outputs_review_share_links` | off | Allow Kist share links (made only on a click) |
+| `outputs_review_share_links` | off | Allow [Kist](https://kist.pictures/privacy/#sharing) share links (made only on a click) |
 | `outputs_review_proofing`, `_share_days`, `_allow_download` | on, `30`, off | Share link details |
 
 There are no environment variables for publishing.

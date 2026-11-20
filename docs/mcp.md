@@ -1,8 +1,8 @@
 # Agents (MCP)
 
-Sklent has a streamable-HTTP MCP endpoint at `/mcp`, behind the same bearer token as the UI and
-API. Agents can render a URL, follow the job, look at the stills, compare versions and build
-every publishing output.
+MCP (Model Context Protocol) is the protocol AI agents like Claude use to call tools. Sklent has a streamable-HTTP MCP endpoint at `/mcp`,
+behind the same bearer token as the UI and API. Agents can render a URL, follow the job, look at
+the stills, compare versions and build every publishing output.
 
 ## Connect
 
@@ -30,7 +30,7 @@ tools marked **R** below and nothing else; every other tool answers 403. Helper 
 | `render_url` | Scan a URL now and queue renders; returns job ids | |
 | `wait_for_job`, `job_status`, `list_jobs` | Follow progress | R |
 | `cancel_job` | Drop a queued job, or stop a running render | |
-| `get_render_set` | Files, sizes, download paths, Kist folder and item ids | R |
+| `get_render_set` | Files, sizes, download paths, [Kist](https://kist.pictures) folder and item ids | R |
 | `view_render` | See a still (image content) | R |
 | `list_sources`, `list_designs` | What's there | R |
 | `add_source`, `scan_source`, `render_design` | Finer control | |
@@ -50,14 +50,14 @@ tools marked **R** below and nothing else; every other tool answers 403. Helper 
 | `get_design_spec`, `get_bom` | A design's `spec.json` and parts list | R |
 | `view_sheet` | See a spec card, parts sheet, views sheet, dimension still or assembly step | R |
 | `make_contact_sheet` | Every rendered design of a source on one sheet | |
-| `get_outputs` | A design's presets, print files, photos, listing details, readiness and Kist board | R |
+| `get_outputs` | A design's presets, print files, photos, listing details, readiness and [Kist](https://kist.pictures) board | R |
 | `make_output_preset` | Make one preset or all enabled ones | |
 | `build_file_pack` | The print pack zip, optionally split (`split_mb`) | |
 | `export_project_page` | Offline HTML page for a design or a source (zip) | |
 | `build_listing_pack` / `listing_readiness`, `listing_text` | Marketplace packs / the checklist and listing text | / R |
 | `set_listing_details` | Title, summary, licence, print notes, tags | |
 | `attach_photo` / `list_photos` | Real print photos (base64 in) | / R |
-| `make_review_board`, `create_share_link`, `revoke_share_link` | Kist board; a public share link only when the setting allows and the user asks | |
+| `make_review_board`, `create_share_link`, `revoke_share_link` | [Kist](https://kist.pictures) board; a public share link only when the setting allows and the user asks | |
 | `list_helpers` | Render helpers and what this server does with renders now | R (admin token only) |
 
 ## Things to ask

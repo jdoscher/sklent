@@ -2,11 +2,13 @@
 
 Every render makes one **render set** per version of a design: the files below, a
 `report.json` (frame time, process count, per-step timings, where it was rendered) and a
-`spec.json`. With [Kist](kist.md) on, every file is also filed into the design's Kist folder,
-tagged `format:<variant>`.
+`spec.json`. If you connect [Kist](https://kist.pictures), a self-hosted library for the images and files you
+collect, every file is also filed into the design's folder there, tagged `format:<variant>`
+(optional; see [Working with Kist](kist.md)).
 
 Settings live in the app: **Settings** in the UI, `GET/PUT /api/settings`, the MCP tools
-`set_render_settings` and `set_views_settings`, and per repo in `.sklent.yaml`
+`set_render_settings` and `set_views_settings` ([MCP](mcp.md) is the protocol AI agents like Claude use to call tools), and per
+repo in `.sklent.yaml`
 (`settings:`, see [Inputs](inputs.md#sklentyaml)). Most can also be chosen for one render from
 the sheet's **Outputs and views…**.
 
@@ -44,8 +46,9 @@ carries colour (per-face paint, imported STEP colours).
 </figure>
 </div>
 
-The wireframe style is an x-ray (see-through bodies with every edge): SolidCraft's headless
-renderer ignores `view.visual_style`.
+The wireframe style is an x-ray (see-through bodies with every edge), because the headless
+renderer of [SolidCraft](https://github.com/tangency-labs/solidcraft), the open-source parametric CAD app Sklent renders with, ignores
+`view.visual_style`.
 
 ### Render settings
 
@@ -60,7 +63,7 @@ renderer ignores `view.visual_style`.
 ## Views and render modes
 
 Off unless noted. Each is a setting (`views_*`) and can also be turned on for one render.
-Extra files land in the set, in Kist (`format:<variant>`) and on the design's sheet.
+Extra files land in the set, in [Kist](https://kist.pictures) (`format:<variant>`) and on the design's sheet.
 
 | variant | what | setting (default) |
 |---|---|---|
@@ -148,7 +151,7 @@ parts:                      # or a bare list
 
 Every rendered design of a source on one page (3840×2160 PNG pages of 24 and a PDF), each as
 its hero still with mono labels under a title block. Make it from the grid button on a
-source's row, `POST /api/sources/{id}/contact-sheet`, or MCP `make_contact_sheet`. With Kist on
+source's row, `POST /api/sources/{id}/contact-sheet`, or MCP `make_contact_sheet`. With [Kist](https://kist.pictures) on
 it is filed once per version, tagged `format:contact-sheet`.
 
 ![A contact sheet of the five example designs](assets/outputs/contact-sheet.webp){ .sk-shot }
@@ -163,6 +166,6 @@ fixed iso camera. Designs over `revisions_timelapse_max_bodies` (100) bodies or
 
 ## Publishing settings
 
-Presets, file packs, listing packs, brand and Kist review settings (`outputs_*`) are on
+Presets, file packs, listing packs, brand and [Kist](https://kist.pictures) review settings (`outputs_*`) are on
 [Publishing](publishing.md#settings). The rendering and helper settings (`render_*`,
 `helpers_*`) are on [Render helpers and GPU](helpers.md#settings).

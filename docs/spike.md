@@ -1,12 +1,12 @@
 # Rendering spike (2026-10-31)
 
-Goal: prove SolidCraft designs can be turned into turntable videos, GIFs, and stills
+Goal: prove designs from [SolidCraft](https://github.com/tangency-labs/solidcraft), an open-source parametric CAD app, can be turned into turntable videos, GIFs, and stills
 headlessly on the render host, in both a shaded and a wireframe style.
 
 ## Setup
 
 - SolidCraft 0.28.0 `linux-x86_64.tar.gz`, `solidcraft-cli mcp --headless --in <design>`
-  driven over stdio by `mcpc.py` (a ~40-line MCP client).
+  driven over stdio by `mcpc.py` (a ~40-line client for MCP, the protocol AI agents like Claude use to call tools).
 - Container: `ubuntu:24.04` + `mesa-vulkan-drivers`, `ffmpeg`, `python3`; run with
   `--device /dev/dri --group-add 992` (render group). `solidcraft-cli gpu` picks the
   **Intel Iris Xe (Vulkan, hardware tier)**; renderer reports `gpu`.

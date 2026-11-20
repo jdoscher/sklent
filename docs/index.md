@@ -10,9 +10,11 @@ hide:
 
 # Your CAD repo, as a showcase. { .sk-hero__line }
 
-<p class="sk-hero__sub">Sklent watches a GitHub or Forgejo repo and renders every SolidCraft, STEP,
-STL and 3MF design in it into turntables, stills, drawing sheets and listing packs, on your own
-server. Each set can be filed into Kist; an MCP endpoint lets your agents do it all for you.</p>
+<p class="sk-hero__sub">Sklent turns the 3D designs in a Git repo into turntable videos, stills,
+drawing sheets and marketplace listing packs, on your own server. Point it at a repo on GitHub or
+Forgejo (a self-hosted Git forge) and it renders every STEP, STL and 3MF file in it, plus designs
+made in <a href="https://github.com/tangency-labs/solidcraft">SolidCraft</a>, an open-source parametric CAD app. AI agents like Claude
+can run it too, over MCP, the protocol they use to call tools.</p>
 
 [Install](install.md){ .md-button .md-button--primary } [Connect an agent](mcp.md){ .md-button }
 
@@ -26,7 +28,7 @@ server. Each set can be filed into Kist; an MCP endpoint lets your agents do it 
 <div markdown><span class="sk-k">02 · Output</span><strong>Every output a maker publishes</strong>
 <p>Turntable movies, reels, Discord clips, GIFs and stills in shaded and x-ray, plus spec cards, engineering sheets, parts lists, print file packs and marketplace listing packs.</p></div>
 <div markdown><span class="sk-k">03 · Runs on</span><strong>Your own server</strong>
-<p>One Docker container, GPU or software rendering. It files each set into a Kist folder, tagged and versioned, or keeps everything local and stands alone.</p></div>
+<p>One Docker container, GPU or software rendering. Sklent works on its own and keeps every set on its own disk. If you also run <a href="https://kist.pictures">Kist</a>, a self-hosted library for the images and files you collect, it files each set there, tagged and versioned.</p></div>
 </div>
 
 <div class="sk-spec" markdown>
@@ -110,7 +112,8 @@ It works on a phone too: the menu opens filters, sources and jobs.
 
 ## A sibling of Kist
 
-Sklent wears [Kist](https://kist.pictures)'s design system, so the two read as one suite. With
-Kist connected, every render set lands in a Kist folder, tagged by repo, design, style, format
-and commit, with each new version stacked on the last. Without it, Sklent keeps the sets on
-its own disk and does everything else the same. [Working with Kist](kist.md).
+Sklent shares its [design system](https://kist.pictures/brand/) with [Kist](https://kist.pictures), so the two apps look like one
+suite. You don't need [Kist](https://kist.pictures) to use Sklent. If you run it, Sklent files every render set into
+a folder there, tagged by repo, design, style, format and commit, with each new version stacked
+on the last. Without it, Sklent keeps the sets on its own disk and does everything else the same.
+More in [Working with Kist](kist.md).

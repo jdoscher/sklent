@@ -2,6 +2,9 @@
 
 ## What a URL can point at
 
+Sklent reads designs from GitHub and from Forgejo, a self-hosted Git forge: files from
+[SolidCraft](https://github.com/tangency-labs/solidcraft), an open-source parametric CAD app, and STEP, STL and 3MF files.
+
 Paste any of these into the top bar and press **Render** (or **Add source** to watch it without
 rendering yet):
 
@@ -89,7 +92,8 @@ read access. `inputs_public_url` sets this server's URL for the comment's links.
 
 A class set is an account or organisation plus a repo-name prefix, the way GitHub Classroom
 names an assignment's repos (`bracket-hw-<username>`). Add one from the sidebar's **Class
-sets** (or `POST /api/classes`, MCP `add_class_source`), with an optional deadline and roster:
+sets** (or `POST /api/classes`, or the [MCP](mcp.md) tool `add_class_source`; MCP is
+the protocol AI agents like Claude use to call tools), with an optional deadline and roster:
 
 - **Deadline** (ISO 8601): each repo renders its newest commit at or before it (committer
   date). A later push shows `after due` on the tile and doesn't re-render.

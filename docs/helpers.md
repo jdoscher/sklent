@@ -1,7 +1,8 @@
 # Render helpers and GPU
 
-Sklent can keep a shared GPU usable, render in software, hold renders for quiet hours, and
-hand the rendering to other machines.
+Sklent renders every design with [SolidCraft](https://github.com/tangency-labs/solidcraft), an open-source parametric CAD app, which it
+runs headless (with no window). It can keep a shared GPU usable, render in software, hold
+renders for quiet hours, and hand the rendering to other machines.
 
 ## This server's GPU
 
@@ -10,7 +11,7 @@ hand the rendering to other machines.
 - **Renderer**: `GPU`; `Software (CPU)`, which runs SolidCraft on Mesa lavapipe (slower, the
   same pictures, no GPU load, so other GPU work on the machine is left alone); or
   `Off: helpers only`, where this server never renders and jobs wait for helpers. Scans,
-  filing into Kist and the UI carry on either way.
+  filing into [Kist](https://kist.pictures) and the UI carry on either way.
 - **GPU processes**: the most SolidCraft processes on the GPU at once (default 1). In software
   mode, big designs fan out to `SK_RENDER_PROCESSES` instead.
 - **Quiet hours** (e.g. `22:00-07:00`, this server's local time, `TZ`): during them, *Wait:
@@ -29,14 +30,15 @@ Each set's `report.json` and the drawing sheet's title block say where it was re
 A render helper is another machine with SolidCraft that renders for this server. It asks for
 work, downloads the design (and its linked files) from this server, renders the set with this
 server's settings and every feature step, and uploads it. This server then files it into
-Kist, links the versions and keeps the revision history, exactly as for its own renders.
+[Kist](https://kist.pictures), links the versions and keeps the revision history, exactly as for its own renders.
 Scans stay on the server. A helper needs no database, no data folder and no forge token.
 
 ### Its token
 
 **Settings → Helpers → Create helper token** (or `sklent token create NAME --scope helper` on
 the server) makes a token that starts with `skh`. It may call only the helper protocol
-(`/api/helpers/claim` and `/api/helpers/jobs/…`); every other route and all of MCP answer 403.
+(`/api/helpers/claim` and `/api/helpers/jobs/…`); every other route and every MCP tool (MCP is
+the protocol AI agents like Claude use to call tools) answer 403.
 The panel shows the `.env.helper` lines once. Revoke the token in **Settings → Tokens**.
 
 ### A Linux box (container)
